@@ -242,9 +242,9 @@ class Pulse(object):
 
 	action_done = PulseActionDoneFlagAttr()
 
-	def __init__(self, client_name=None, server=None, retry=True):
+	def __init__(self, client_name=None, server=None):
 		self.name = client_name or 'pulsectl'
-		self.server, self.retry, self.connected = server, retry, False
+		self.server, self.connected = server, False
 		self._ret = self._ctx = self._op = self._loop = self._api = None
 		self._data = list()
 		self.init()
@@ -267,10 +267,8 @@ class Pulse(object):
 		self.action_done = False
 
 		if c.pa_context_connect(self._ctx, self.server, 0, None) < 0:
-			if self.retry:
-				c.pa_context_disconnect(self._ctx)
-				return
 			self.close()
+			raise PulseError('pa_context_connect failed')
 		self._pulse_iterate()
 
 	def close(self):
@@ -282,17 +280,6 @@ class Pulse(object):
 			c.pa_signal_done()
 			c.pa_mainloop_free(self._loop)
 			self._loop = None
-
-	def reconnect(self):
-		self._ctx = c.pa_context_new(self._api, self.name)
-		c.pa_context_set_state_callback(self._ctx, self.pa_state_cb, None)
-		self.action_done = False
-		if c.pa_context_connect(self._ctx, self.server, 0, None) < 0:
-			if self.retry:
-				c.pa_context_disconnect(self._ctx)
-				return
-			self.close()
-		self._pulse_iterate()
 
 	def __enter__(self): return self
 	def __exit__(self, err_t, err, err_tb): self.close()
@@ -306,7 +293,8 @@ class Pulse(object):
 		state = c.pa_context_get_state(ctx)
 		if state in [4, 5, 6]:
 			if state == 6:
-				if not self.retry: self.close() # XXX
+				self.close()
+				raise PulseError('pa connection terminated')
 			elif state == 4: self.connected = True
 			elif state == 5: self.connected = False
 			self.action_done = True
