@@ -313,10 +313,6 @@ pa_context_disconnect = p.pa_context_disconnect
 pa_context_disconnect.restype = None
 pa_context_disconnect.argtypes = [POINTER(PA_CONTEXT)]
 
-pa_context_unref = p.pa_context_unref
-pa_context_disconnect.restype = None
-pa_context_unref.argtypes = [POINTER(PA_CONTEXT)]
-
 pa_context_get_sink_input_info_list = p.pa_context_get_sink_input_info_list
 pa_context_get_sink_input_info_list.restype = POINTER(c_int)
 pa_context_get_sink_input_info_list.argtypes = [
@@ -573,5 +569,4 @@ pa_context_set_card_profile_by_index.argtypes = [
 	c_void_p
 ]
 
-def pa_return_value():
-	return pointer(c_int())
+def pa_return_value(): return pointer(c_int())

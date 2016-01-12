@@ -10,12 +10,13 @@ from . import _pulsectl as c
 
 class PulseActionDoneFlag(object):
 	def __init__(self): self.state = False
-	def set(self, state=True): self.state = bool(state)
+	def set(self, state=True): self.state = state
 	def set_callback(self, *args, **kws):
 		self.set()
 		return 0
 	def unset(self): self.state = False
-	def __nonzero__(self): return self.state
+	def __nonzero__(self): return bool(self.state)
+	def __repr__(self): return '<PulseActionDoneFlag: {}>'.format(self.state)
 
 class PulseActionDoneFlagAttr(object):
 	def __init__(self): self.instances = defaultdict(PulseActionDoneFlag)
@@ -269,20 +270,18 @@ class Pulse(object):
 			if self.retry:
 				c.pa_context_disconnect(self._ctx)
 				return
-			self.disconnect()
+			self.close()
 		self._pulse_iterate()
 
-	def disconnect(self):
-		if self._ctx:
-			CB = c.PA_CONTEXT_DRAIN_CB_T(lambda ctx, user_data: c.pa_context_disconnect(self._ctx))
-			c.pa_context_drain(self._ctx, CB, None)
-			c.pa_context_disconnect(self._ctx)
-			c.pa_context_unref(self._ctx)
+	def close(self):
 		if self._loop:
-			c.pa_signal_done()
+			if self._ctx:
+				c.pa_context_disconnect(self._ctx)
+				self._ctx = None
 			c.pa_mainloop_quit(self._loop, 0)
+			c.pa_signal_done()
 			c.pa_mainloop_free(self._loop)
-		self._ctx = self._loop = None
+			self._loop = None
 
 	def reconnect(self):
 		self._ctx = c.pa_context_new(self._api, self.name)
@@ -292,24 +291,24 @@ class Pulse(object):
 			if self.retry:
 				c.pa_context_disconnect(self._ctx)
 				return
-			self.disconnect()
+			self.close()
 		self._pulse_iterate()
 
 	def __enter__(self): return self
-	def __exit__(self, err_t, err, err_tb): self.disconnect()
+	def __exit__(self, err_t, err, err_tb): self.close()
 
 
 	def _pulse_signal_cb(self, api, e, sig, userdata):
-		if sig in [signal.SIGINT, signal.SIGTERM]: self.disconnect()
+		if sig in [signal.SIGINT, signal.SIGTERM]: self.close()
 		return 0
 
 	def _pulse_state_cb(self, ctx, b):
 		state = c.pa_context_get_state(ctx)
 		if state in [4, 5, 6]:
-			if state == 4: self.connected = True
+			if state == 6:
+				if not self.retry: self.close() # XXX
+			elif state == 4: self.connected = True
 			elif state == 5: self.connected = False
-			elif state == 6:
-				if not self.retry: raise PulseError(c.pa_context_errno(ctx))
 			self.action_done = True
 		return 0
 
@@ -317,11 +316,11 @@ class Pulse(object):
 		self._ret = c.pa_return_value()
 		c.pa_mainloop_run(self._loop, self._ret)
 
-	def _pulse_iterate(self, times=1):
+	def _pulse_iterate(self, block=True):
 		self._ret = c.pa_return_value()
-		c.pa_mainloop_iterate(self._loop, times, self._ret)
+		c.pa_mainloop_iterate(self._loop, int(block), self._ret)
 		while not self.action_done:
-			c.pa_mainloop_iterate(self._loop, times, self._ret)
+			c.pa_mainloop_iterate(self._loop, int(block), self._ret)
 
 
 	def _pulse_info_cb(self, info_cls, ctx, info, eof, userdata):
