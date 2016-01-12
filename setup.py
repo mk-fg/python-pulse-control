@@ -13,13 +13,14 @@ except IOError: readme = ''
 setup(
 
 	name = 'pulsectl',
-	version = '16.1.1',
-	author = 'Mike Kazantsev',
+	version = '16.1.2',
+	author = 'George Filipkin, Mike Kazantsev',
 	author_email = 'mk.fraggod@gmail.com',
 	license = 'MIT',
 	keywords = [
-		'pulseaudio', 'libpulse', 'pulse', 'bindings',
-		'ctypes', 'control', 'mixer' ],
+		'pulseaudio', 'libpulse', 'pulse', 'pa', 'bindings',
+		'sound', 'audio',
+		'ctypes', 'control', 'mixer', 'volume', 'mute', 'source', 'sink' ],
 
 	url = 'http://github.com/mk-fg/python-pulse-control',
 

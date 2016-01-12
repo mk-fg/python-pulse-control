@@ -268,6 +268,10 @@ pa_signal_new = p.pa_signal_new
 pa_signal_new.restype = None
 pa_signal_new.argtypes = [c_int, PA_SIGNAL_CB_T, POINTER(c_int)]
 
+pa_signal_done = p.pa_signal_done
+pa_signal_done.restype = None
+pa_signal_done.argtypes = []
+
 pa_context_errno = p.pa_context_errno
 pa_context_errno.restype = c_int
 pa_context_errno.argtypes = [POINTER(PA_CONTEXT)]
@@ -306,8 +310,12 @@ pa_context_drain.argtypes = [
 ]
 
 pa_context_disconnect = p.pa_context_disconnect
-pa_context_disconnect.restype = c_int
+pa_context_disconnect.restype = None
 pa_context_disconnect.argtypes = [POINTER(PA_CONTEXT)]
+
+pa_context_unref = p.pa_context_unref
+pa_context_disconnect.restype = None
+pa_context_unref.argtypes = [POINTER(PA_CONTEXT)]
 
 pa_context_get_sink_input_info_list = p.pa_context_get_sink_input_info_list
 pa_context_get_sink_input_info_list.restype = POINTER(c_int)
@@ -564,3 +572,6 @@ pa_context_set_card_profile_by_index.argtypes = [
 	PA_CONTEXT_SUCCESS_CB_T,
 	c_void_p
 ]
+
+def pa_return_value():
+	return pointer(c_int())
