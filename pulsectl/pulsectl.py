@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import itertools as it, operator as op, functools as ft
 from collections import defaultdict
-import signal
+import inspect, signal
 
 from . import _pulsectl as c
 
@@ -248,12 +248,16 @@ class Pulse(object):
 			del self._data[:]
 			return _wrapper.func(self, data or list()) if _wrapper.func else data
 		_wrapper.func = None
+		def _add_wrap_doc(func):
+			func.func_name = '...'
+			func.func_doc = 'Signature: func()'
+			return func
 		def _decorator_or_method(func_or_self=None):
 			if func_or_self.__class__.__name__ == 'Pulse': return _wrapper(func_or_self)
-			elif func_or_self:
-				_wrapper.func = func_or_self
-				return ft.wraps(func_or_self)(_wrapper)
+			elif func_or_self: _wrapper.func = func_or_self
 			return _wrapper
+		_add_wrap_doc(_wrapper)
+		_add_wrap_doc(_decorator_or_method)
 		return _decorator_or_method
 
 	def _pulse_fill_clients(self, data):
@@ -261,7 +265,7 @@ class Pulse(object):
 		clist = self.client_list()
 		for d in data:
 			for c in clist:
-				if c.index == d.client_id:
+				if c.index == d.client:
 					d.client = c
 					break
 		return data
@@ -286,7 +290,6 @@ class Pulse(object):
 	def _pulse_method_call(method_or_func, func=None):
 		if func is None: func_method, func = None, method_or_func
 		else: func_method = method_or_func
-		@ft.wraps(func)
 		def _wrapper(self, index, *args, **kws):
 			method, pulse_call = func_method, func(*args, **kws)
 			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
@@ -295,6 +298,11 @@ class Pulse(object):
 			CONTEXT = c.PA_CONTEXT_SUCCESS_CB_T(self._action_done.set_callback)
 			self._op = method(self._ctx, index, *(list(pulse_call) + [CONTEXT, None]))
 			self._pulse_iterate()
+		func_args = list(inspect.getargspec(func))
+		func_args[0] = ['index'] + list(func_args[0])
+		_wrapper.func_name = '...'
+		_wrapper.func_doc = 'Signature: func' + inspect.formatargspec(*func_args)
+		if func.func_doc: _wrapper.func_doc += '\n\n' + func.func_doc
 		return _wrapper
 
 	sink_input_mute = _pulse_method_call(

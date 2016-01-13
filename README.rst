@@ -45,6 +45,9 @@ Misc other tinkering::
   >>> pulse.volume_change_all_chans(sink, -10)
   >>> pulse.volume_set_all_chans(sink, 50)
 
+  >>> help(pulse)
+  ...
+
 Current code logic is that all methods are invoked through the Pulse instance,
 and everything returned from these are "Pulse-Something-Info" objects - thin
 wrappers around C structs that describe the thing, without any methods attached.
