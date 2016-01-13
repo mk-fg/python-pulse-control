@@ -28,6 +28,11 @@ class PulseError(Exception): pass
 
 class PulseObject(object):
 
+	def _as_str(self, ext=None, **kws):
+		kws = list(it.starmap('{}={!r}'.format, sorted(kws.viewitems())))
+		if ext: kws.append(bytes(ext))
+		return ', '.join(kws)
+
 	def __repr__(self):
 		return '<{} at {:x} - {}>'.format(self.__class__.__name__, id(self), bytes(self))
 
@@ -47,7 +52,7 @@ class PulseCard(PulseObject):
 		self.name = name
 
 	def __str__(self):
-		return 'Card-ID: {}, Name: {}'.format(self.index, self.name)
+		return self._as_str(card_index=self.index, name=self.name)
 
 
 class PulseCardC(PulseCard):
@@ -66,7 +71,7 @@ class PulseClient(PulseObject):
 		self.name = name
 
 	def __str__(self):
-		return 'Client-name: {}'.format(self.name)
+		return self._as_str(client_name=self.name)
 
 
 class PulseClientC(PulseClient):
@@ -113,8 +118,8 @@ class PulseSinkInfo(PulseSink):
 		if self.n_ports: self.active_port = PulsePort(pa_sink_info.active_port.contents)
 
 	def __str__(self):
-		return 'ID: {}, Name: {}, Mute: {}, {}'.format(
-			self.index, self.description, self.mute, self.volume)
+		return self._as_str( self.volume,
+			index=self.index, name=self.name, desc=self.description, mute=self.mute )
 
 
 class PulseSinkInputInfo(PulseSink):
@@ -138,10 +143,9 @@ class PulseSinkInputInfo(PulseSink):
 
 	def __str__(self):
 		if self.client:
-			return 'ID: {}, Name: {}, Mute: {}, {}'.format(
-				self.index, self.client.name, self.mute, self.volume)
-		return 'ID: {}, Name: {}, Mute: {}'.format(
-			self.index, self.name, self.mute)
+			return self._as_str( self.volume,
+				index=self.index, name=self.client.name, mute=self.mute )
+		return self._as_str(index=self.index, name=self.name, mute=self.mute)
 
 
 class PulseSource(PulseObject):
@@ -180,8 +184,8 @@ class PulseSourceInfo(PulseSource):
 		if self.n_ports: self.active_port = PulsePort(pa_source_info.active_port.contents)
 
 	def __str__(self):
-		return 'ID: {}, Name: {}, Mute: {}, {}'.format(
-			self.index, self.description, self.mute, self.volume)
+		return self._as_str( self.volume,
+			index=self.index, name=self.name, desc=self.description, mute=self.mute )
 
 
 class PulseSourceOutputInfo(PulseSource):
@@ -205,10 +209,9 @@ class PulseSourceOutputInfo(PulseSource):
 
 	def __str__(self):
 		if self.client:
-			return 'ID: {}, Name: {}, Mute: {}, {}'.format(
-				self.index, self.client.name, self.mute, self.volume)
-		return 'ID: {}, Name: {}, Mute: {}'.format(
-			self.index, self.name, self.mute)
+			return self._as_str( self.volume,
+				index=self.index, name=self.client.name, mute=self.mute )
+		return self._as_str(index=self.index, name=self.name, mute=self.mute)
 
 
 class PulseVolume(PulseObject):
@@ -227,8 +230,8 @@ class PulseVolume(PulseObject):
 		return cvolume
 
 	def __str__(self):
-		return 'Channels: {}, Volumes: {}'.format(
-			self.channels, [str(x) + '%' for x in self.values])
+		return self._as_str( channels=self.channels,
+			volumes=', '.join(map('{}%'.format, self.values)) )
 
 
 class PulseVolumeC(PulseVolume):

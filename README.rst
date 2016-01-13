@@ -32,20 +32,24 @@ Misc other tinkering::
   >>> pulse = Pulse('my-client-name')
 
   >>> pulse.sink_list()
-  [<PulseSinkInfo at 7f7535ef6f10 - ID: 0, Name: Built-in Audio, Mute: 0, Channels: 2, Volumes: ['44.0%', '44.0%']>]
+  [<PulseSinkInfo at 7f85cfd053d0 - desc='Built-in Audio', index=0L, mute=0, name='alsa-speakers', channels=2, volumes='44.0%, 44.0%'>]
 
   >>> pulse.sink_input_list()
-  [<PulseSinkInputInfo at 7f7535ef6210 - ID: 549, Name: mpv Media Player, Mute: 0, Channels: 2, Volumes: ['32.0%', '32.0%']>]
+  [<PulseSinkInputInfo at 7fa06562d3d0 - index=181L, mute=0, name='mpv Media Player', channels=2, volumes='25.0%, 25.0%'>]
 
   >>> pulse.source_list()
-  [<PulseSourceInfo at 7f7064c53e90 - ID: 0, Name: Monitor of Built-in Audio, Mute: 0, Channels: 2, Volumes: ['100.0%', '100.0%']>,
-   <PulseSourceInfo at 7f705da086d0 - ID: 1, Name: Built-in Audio, Mute: 0, Channels: 2, Volumes: ['100.0%', '100.0%']>]
+  [<PulseSourceInfo at 7fcb0615d8d0 - desc='Monitor of Built-in Audio', index=0L, mute=0, name='alsa-speakers.monitor', channels=2, volumes='100.0%, 100.0%'>,
+   <PulseSourceInfo at 7fcb0615da10 - desc='Built-in Audio', index=1L, mute=0, name='alsa-mic', channels=2, volumes='100.0%, 100.0%'>]
 
   >>> sink = pulse.sink_list()[0]
   >>> pulse.volume_change_all_chans(sink, -10)
   >>> pulse.volume_set_all_chans(sink, 50)
 
-Module is relatively new and high-level interfaces might change in the future.
+Current code logic is that all methods are invoked through the Pulse instance,
+and everything returned from these are "Pulse-Something-Info" objects - thin
+wrappers around C structs that describe the thing, without any methods attached.
+
+Module is relatively new and these high-level interfaces might change in the future.
 
 
 
