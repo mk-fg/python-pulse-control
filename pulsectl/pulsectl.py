@@ -163,7 +163,7 @@ class PulseVolumeC(PulseVolume):
 
 class Pulse(object):
 
-	action_done = PulseActionDoneFlagAttr()
+	_action_done = PulseActionDoneFlagAttr()
 
 	def __init__(self, client_name=None, server=None):
 		self.name = client_name or 'pulsectl'
@@ -173,8 +173,8 @@ class Pulse(object):
 		self.init()
 
 	def init(self):
-		self.pa_signal_cb = c.PA_SIGNAL_CB_T(self._pulse_signal_cb)
-		self.pa_state_cb = c.PA_STATE_CB_T(self._pulse_state_cb)
+		self._pa_signal_cb = c.PA_SIGNAL_CB_T(self._pulse_signal_cb)
+		self._pa_state_cb = c.PA_STATE_CB_T(self._pulse_state_cb)
 
 		self._loop = c.pa_mainloop_new()
 		self._api = c.pa_mainloop_get_api(self._loop)
@@ -182,12 +182,12 @@ class Pulse(object):
 		if c.pa_signal_init(self._api) != 0:
 			raise PulseError('pa_signal_init failed')
 
-		c.pa_signal_new(2, self.pa_signal_cb, None)
-		c.pa_signal_new(15, self.pa_signal_cb, None)
+		c.pa_signal_new(2, self._pa_signal_cb, None)
+		c.pa_signal_new(15, self._pa_signal_cb, None)
 
 		self._ctx = c.pa_context_new(self._api, self.name)
-		c.pa_context_set_state_callback(self._ctx, self.pa_state_cb, None)
-		self.action_done = False
+		c.pa_context_set_state_callback(self._ctx, self._pa_state_cb, None)
+		self._action_done = False
 
 		if c.pa_context_connect(self._ctx, self.server, 0, None) < 0:
 			self.close()
@@ -216,7 +216,7 @@ class Pulse(object):
 			if state == c.PA_CONTEXT_READY: self.connected = True
 			elif state == c.PA_CONTEXT_FAILED: self.connected = False
 			# c.PA_CONTEXT_TERMINATED also happens here on clean disconnect
-			self.action_done = True
+			self._action_done = True
 		return 0
 
 	def _pulse_run(self):
@@ -226,24 +226,24 @@ class Pulse(object):
 	def _pulse_iterate(self, block=True):
 		self._ret = c.pa_return_value()
 		c.pa_mainloop_iterate(self._loop, int(block), self._ret)
-		while not self.action_done:
+		while not self._action_done:
 			c.pa_mainloop_iterate(self._loop, int(block), self._ret)
 
 
 	def _pulse_info_cb(self, info_cls, ctx, info, eof, userdata):
 		if eof:
-			self.action_done = True
+			self._action_done = True
 			return 0
 		self._data.append(info_cls(info[0]))
 		return 0
 
 	def _pulse_get_list(cb_t, pulse_func, info_cls):
 		def _wrapper(self):
-			self.action_done = False
+			self._action_done = False
 			CB = cb_t(ft.partial(self._pulse_info_cb, info_cls))
 			self._op = pulse_func(self._ctx, CB, None)
 			self._pulse_iterate()
-			assert self.action_done
+			assert self._action_done
 			data = list(self._data)
 			del self._data[:]
 			return _wrapper.func(self, data or list()) if _wrapper.func else data
@@ -291,8 +291,8 @@ class Pulse(object):
 			method, pulse_call = func_method, func(*args, **kws)
 			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
 			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
-			self.action_done = False
-			CONTEXT = c.PA_CONTEXT_SUCCESS_CB_T(self.action_done.set_callback)
+			self._action_done = False
+			CONTEXT = c.PA_CONTEXT_SUCCESS_CB_T(self._action_done.set_callback)
 			self._op = method(self._ctx, index, *(list(pulse_call) + [CONTEXT, None]))
 			self._pulse_iterate()
 		return _wrapper
