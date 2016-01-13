@@ -28,191 +28,113 @@ class PulseError(Exception): pass
 
 class PulseObject(object):
 
-	def _as_str(self, ext=None, **kws):
-		kws = list(it.starmap('{}={!r}'.format, sorted(kws.viewitems())))
+	def __init__(self, struct=None, *field_data_list, **field_data_dict):
+		field_data, fields = dict(), getattr(self, 'c_struct_fields', list())
+		if isinstance(fields, bytes): fields = self.c_struct_fields = fields.split()
+		if field_data_list: field_data.update(zip(fields, field_data_list))
+		if field_data_dict: field_data.update(field_data_dict)
+		if struct is None: field_data, struct = dict(), field_data
+		assert not set(field_data.keys()).difference(fields)
+		self._copy_struct_fields(field_data, fields=field_data.keys())
+		self._copy_struct_fields(struct, fields=set(fields).difference(field_data.keys()))
+
+	def _copy_struct_fields(self, struct, fields=None):
+		if not fields: fields = self.c_struct_fields
+		for k in fields:
+			setattr(self, k, getattr(struct, k) if not isinstance(struct, dict) else struct[k])
+
+	def _as_str(self, ext=None, fields=None, **kws):
+		kws = list(it.starmap('{}={!r}'.format, kws.viewitems()))
+		if fields:
+			if isinstance(fields, bytes): fields = fields.split()
+			kws.extend('{}={!r}'.format(k, getattr(self, k)) for k in fields)
+		kws = sorted(kws)
 		if ext: kws.append(bytes(ext))
 		return ', '.join(kws)
+
+	def __str__(self):
+		return self._as_str(fields=self.c_struct_fields)
 
 	def __repr__(self):
 		return '<{} at {:x} - {}>'.format(self.__class__.__name__, id(self), bytes(self))
 
 
 class PulsePort(PulseObject):
-
-	def __init__(self, pa_port):
-		self.name = pa_port.name
-		self.description = pa_port.description
-		self.priority = pa_port.priority
-
+	c_struct_fields = 'name description priority'
 
 class PulseCard(PulseObject):
-
-	def __init__(self, name, index=0):
-		self.index = index
-		self.name = name
-
-	def __str__(self):
-		return self._as_str(card_index=self.index, name=self.name)
-
-
-class PulseCardC(PulseCard):
-
-	def __init__(self, pa_card):
-		super(PulseCardC, self).__init__(pa_card.name, pa_card.index)
-		self.driver = pa_card.driver
-		self.owner_module = pa_card.owner_module
-		self.n_profiles = pa_card.n_profiles
-
+	c_struct_fields = 'name index driver owner_module n_profiles'
 
 class PulseClient(PulseObject):
-
-	def __init__(self, name, index=0):
-		self.index = index
-		self.name = name
-
-	def __str__(self):
-		return self._as_str(client_name=self.name)
-
-
-class PulseClientC(PulseClient):
-
-	def __init__(self, pa_client):
-		super(PulseClientC, self).__init__(pa_client.name, pa_client.index)
-		self.driver = pa_client.driver
-		self.owner_module = pa_client.owner_module
-
+	c_struct_fields = 'name index driver owner_module'
 
 class PulseSink(PulseObject):
+	c_struct_fields = 'index name mute volume client'
 
-	def __init__(self, index, name, mute, volume, client):
-		self.index = index
-		self.name = name
-		self.mute = mute
-		self.volume = volume
-		self.client = client
-
-
-class PulseSinkInfo(PulseSink):
+class PulseSinkInfo(PulseObject):
+	c_struct_fields = ( 'index name mute volume'
+		' description sample_spec channel_map owner_module latency driver monitor_source'
+		' monitor_source_name flags proplist configured_latency n_ports ports active_port' )
 
 	def __init__(self, pa_sink_info):
 		super(PulseSinkInfo, self).__init__(
-			pa_sink_info.index,
-			pa_sink_info.name,
-			pa_sink_info.mute,
-			PulseVolumeC(pa_sink_info.volume),
-			PulseClient(self.__class__.__name__) )
-		self.description = pa_sink_info.description
-		self.sample_spec = pa_sink_info.sample_spec
-		self.channel_map = pa_sink_info.channel_map
-		self.owner_module = pa_sink_info.owner_module
-		self.latency = pa_sink_info.latency
-		self.driver = pa_sink_info.driver
-		self.monitor_source = pa_sink_info.monitor_source
-		self.monitor_source_name = pa_sink_info.monitor_source_name
-		self.flags = pa_sink_info.flags
-		self.proplist = pa_sink_info.proplist
-		self.configured_latency = pa_sink_info.configured_latency
-		self.n_ports = pa_sink_info.n_ports
-		self.ports = [PulsePort(pa_sink_info.ports[i].contents) for i in range(self.n_ports)]
-		self.active_port = None
-		if self.n_ports: self.active_port = PulsePort(pa_sink_info.active_port.contents)
+			pa_sink_info,
+			volume=PulseVolumeC(pa_sink_info.volume),
+			ports=list(
+				PulsePort(pa_sink_info.ports[n].contents)
+				for n in xrange(pa_sink_info.n_ports) ),
+			active_port=PulsePort(pa_sink_info.active_port.contents)
+				if pa_sink_info.n_ports else None )
 
 	def __str__(self):
-		return self._as_str( self.volume,
-			index=self.index, name=self.name, desc=self.description, mute=self.mute )
+		return self._as_str(self.volume, fields='index name description mute')
 
-
-class PulseSinkInputInfo(PulseSink):
+class PulseSinkInputInfo(PulseObject):
+	c_struct_fields = ( 'index name mute volume client'
+		' owner_module sink channel_map sample_spec'
+		' buffer_usec sink_usec resample_method driver' )
 
 	def __init__(self, pa_sink_input_info):
 		super(PulseSinkInputInfo, self).__init__(
-			pa_sink_input_info.index,
-			pa_sink_input_info.name,
-			pa_sink_input_info.mute,
-			PulseVolumeC(pa_sink_input_info.volume),
-			PulseClient(pa_sink_input_info.name) )
-		self.owner_module = pa_sink_input_info.owner_module
-		self.client_id = pa_sink_input_info.client
-		self.sink = pa_sink_input_info.sink
-		self.channel_map = pa_sink_input_info.channel_map
-		self.sample_spec = pa_sink_input_info.sample_spec
-		self.buffer_usec = pa_sink_input_info.buffer_usec
-		self.sink_usec = pa_sink_input_info.sink_usec
-		self.resample_method = pa_sink_input_info.resample_method
-		self.driver = pa_sink_input_info.driver
+			pa_sink_input_info,
+			volume=PulseVolumeC(pa_sink_input_info.volume) )
 
 	def __str__(self):
-		if self.client:
-			return self._as_str( self.volume,
-				index=self.index, name=self.client.name, mute=self.mute )
-		return self._as_str(index=self.index, name=self.name, mute=self.mute)
-
+		return self._as_str(fields='index name mute')
 
 class PulseSource(PulseObject):
+	c_struct_fields = 'index name mute volume client'
 
-	def __init__(self, index, name, mute, volume, client):
-		self.index = index
-		self.name = name
-		self.mute = mute
-		self.client = client
-		self.volume = volume
-
-
-class PulseSourceInfo(PulseSource):
+class PulseSourceInfo(PulseObject):
+	c_struct_fields = ( 'index name mute volume'
+		' description sample_spec channel_map owner_module latency driver monitor_of_sink'
+		' monitor_of_sink_name flags proplist configured_latency n_ports ports active_port' )
 
 	def __init__(self, pa_source_info):
 		super(PulseSourceInfo, self).__init__(
-			pa_source_info.index,
-			pa_source_info.name,
-			pa_source_info.mute,
-			PulseVolumeC(pa_source_info.volume),
-			PulseClient(self.__class__.__name__) )
-		self.description = pa_source_info.description
-		self.sample_spec = pa_source_info.sample_spec
-		self.channel_map = pa_source_info.channel_map
-		self.owner_module = pa_source_info.owner_module
-		self.monitor_of_sink = pa_source_info.monitor_of_sink
-		self.monitor_of_sink_name = pa_source_info.monitor_of_sink_name
-		self.latency = pa_source_info.latency
-		self.driver = pa_source_info.driver
-		self.flags = pa_source_info.flags
-		self.proplist = pa_source_info.proplist
-		self.configured_latency = pa_source_info.configured_latency
-		self.n_ports = pa_source_info.n_ports
-		self.ports = [PulsePort(pa_source_info.ports[i].contents) for i in range(self.n_ports)]
-		self.active_port = None
-		if self.n_ports: self.active_port = PulsePort(pa_source_info.active_port.contents)
+			pa_source_info,
+			volume=PulseVolumeC(pa_source_info.volume),
+			ports=list(
+				PulsePort(pa_source_info.ports[n].contents)
+				for n in xrange(pa_source_info.n_ports) ),
+			active_port=PulsePort(pa_source_info.active_port.contents)
+				if pa_source_info.n_ports else None )
 
 	def __str__(self):
-		return self._as_str( self.volume,
-			index=self.index, name=self.name, desc=self.description, mute=self.mute )
+		return self._as_str(self.volume, fields='index name description mute')
 
-
-class PulseSourceOutputInfo(PulseSource):
+class PulseSourceOutputInfo(PulseObject):
+	c_struct_fields = ( 'index name mute volume client'
+		' owner_module source channel_map sample_spec'
+		' buffer_usec source_usec resample_method driver' )
 
 	def __init__(self, pa_source_output_info):
 		super(PulseSourceOutputInfo, self).__init__(
-			pa_source_output_info.index,
-			pa_source_output_info.name,
-			pa_source_output_info.mute,
-			PulseVolumeC(pa_source_output_info.volume),
-			PulseClient(pa_source_output_info.name) )
-		self.owner_module = pa_source_output_info.owner_module
-		self.client_id = pa_source_output_info.client
-		self.source = pa_source_output_info.source
-		self.sample_spec = pa_source_output_info.sample_spec
-		self.channel_map = pa_source_output_info.channel_map
-		self.buffer_usec = pa_source_output_info.buffer_usec
-		self.source_usec = pa_source_output_info.source_usec
-		self.resample_method = pa_source_output_info.resample_method
-		self.driver = pa_source_output_info.driver
+			pa_source_output_info,
+			volume=PulseVolumeC(pa_source_output_info.volume) )
 
 	def __str__(self):
-		if self.client:
-			return self._as_str( self.volume,
-				index=self.index, name=self.client.name, mute=self.mute )
-		return self._as_str(index=self.index, name=self.name, mute=self.mute)
-
+		return self._as_str(fields='index name mute')
 
 class PulseVolume(PulseObject):
 
@@ -230,9 +152,7 @@ class PulseVolume(PulseObject):
 		return cvolume
 
 	def __str__(self):
-		return self._as_str( channels=self.channels,
-			volumes=', '.join(map('{}%'.format, self.values)) )
-
+		return self._as_str(channels=self.channels, volumes=' / '.join(map('{}%'.format, self.values)))
 
 class PulseVolumeC(PulseVolume):
 
@@ -358,9 +278,9 @@ class Pulse(object):
 	source_list = _pulse_get_list(
 		c.PA_SOURCE_INFO_CB_T, c.pa_context_get_source_info_list, PulseSourceInfo )
 	card_list = _pulse_get_list(
-		c.PA_CARD_INFO_CB_T, c.pa_context_get_card_info_list, PulseCardC )
+		c.PA_CARD_INFO_CB_T, c.pa_context_get_card_info_list, PulseCard )
 	client_list = _pulse_get_list(
-		c.PA_CLIENT_INFO_CB_T, c.pa_context_get_client_info_list, PulseClientC )
+		c.PA_CLIENT_INFO_CB_T, c.pa_context_get_client_info_list, PulseClient )
 
 
 	def _pulse_method_call(method_or_func, func=None):
