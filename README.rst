@@ -94,7 +94,7 @@ installs into custom paths.
 Links
 -----
 
-* pulsemixer_ - initial source of for this project (embedded in the tool).
+* pulsemixer_ - initial source for this project (embedded in the tool).
 
 * `libpulseaudio <https://github.com/thelinuxdude/python-pulseaudio/>`_ -
   low-level bindings module, auto-generated from pulseaudio header files.
