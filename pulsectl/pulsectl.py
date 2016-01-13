@@ -273,13 +273,11 @@ class Pulse(object):
 
 	def close(self):
 		if self._loop:
-			if self._ctx:
-				c.pa_context_disconnect(self._ctx)
-				self._ctx = None
-			c.pa_mainloop_quit(self._loop, 0)
-			c.pa_signal_done()
-			c.pa_mainloop_free(self._loop)
-			self._loop = None
+			try:
+				if self._ctx: c.pa_context_disconnect(self._ctx)
+				c.pa_signal_done()
+				c.pa_mainloop_free(self._loop)
+			finally: self._ctx = self._loop = None
 
 	def __enter__(self): return self
 	def __exit__(self, err_t, err, err_tb): self.close()
@@ -291,12 +289,10 @@ class Pulse(object):
 
 	def _pulse_state_cb(self, ctx, b):
 		state = c.pa_context_get_state(ctx)
-		if state in [4, 5, 6]:
-			if state == 6:
-				self.close()
-				raise PulseError('pa connection terminated')
-			elif state == 4: self.connected = True
-			elif state == 5: self.connected = False
+		if state >= c.PA_CONTEXT_READY:
+			if state == c.PA_CONTEXT_READY: self.connected = True
+			elif state == c.PA_CONTEXT_FAILED: self.connected = False
+			# c.PA_CONTEXT_TERMINATED also happens here on clean disconnect
 			self.action_done = True
 		return 0
 

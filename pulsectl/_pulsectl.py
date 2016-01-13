@@ -11,12 +11,22 @@ PA_VOLUME_NORM = 65536
 PA_CHANNELS_MAX = 32
 PA_USEC_T = c_uint64
 
+PA_CONTEXT_UNCONNECTED = 0
+PA_CONTEXT_CONNECTING = 1
+PA_CONTEXT_AUTHORIZING = 2
+PA_CONTEXT_SETTING_NAME = 3
+PA_CONTEXT_READY = 4
+PA_CONTEXT_FAILED = 5
+PA_CONTEXT_TERMINATED = 6
+
+
 class PA_MAINLOOP(Structure): pass
 class PA_STREAM(Structure): pass
 class PA_MAINLOOP_API(Structure): pass
 class PA_CONTEXT(Structure): pass
 class PA_OPERATION(Structure): pass
 class PA_IO_EVENT(Structure): pass
+
 
 class PA_SAMPLE_SPEC(Structure):
 	_fields_ = [
@@ -173,6 +183,7 @@ class PA_CARD_INFO(Structure):
 		('proplist', POINTER(c_int)),
 	]
 
+
 PA_SIGNAL_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_MAINLOOP_API),
 	POINTER(c_int),
@@ -228,6 +239,7 @@ PA_CARD_INFO_CB_T = CFUNCTYPE(None,
 	c_int,
 	c_void_p)
 
+
 pa_strerror = p.pa_strerror
 pa_strerror.restype = c_char_p
 pa_strerror.argtypes = [c_int]
@@ -256,7 +268,7 @@ pa_mainloop_dispatch = p.pa_mainloop_dispatch
 pa_mainloop_dispatch.restype = c_int
 pa_mainloop_dispatch.argtypes = [POINTER(PA_MAINLOOP)]
 
-pa_mainloop_free = p.pa_mainloop_run
+pa_mainloop_free = p.pa_mainloop_free
 pa_mainloop_free.restype = c_int
 pa_mainloop_free.argtypes = [POINTER(PA_MAINLOOP)]
 
