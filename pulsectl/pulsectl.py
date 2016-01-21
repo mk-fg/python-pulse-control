@@ -150,11 +150,11 @@ class PulseVolumeC(PulseVolume):
 
 class PulseEventInfo(PulseObject):
 
-	def __init__(self, ev_t, facility, idx):
-		self.t, self.facility, self.idx = ev_t, facility, idx
+	def __init__(self, ev_t, facility, index):
+		self.t, self.facility, self.index = ev_t, facility, index
 
 	def __str__(self):
-		return self._as_str(fields='t facility idx'.split())
+		return self._as_str(fields='t facility index'.split())
 
 
 class Pulse(object):
@@ -395,7 +395,7 @@ class Pulse(object):
 		assert isinstance(obj, PulseObject), [type(obj), obj]
 		method = {
 			PulseSinkInfo: self.sink_mute,
-			PulseSinkInputInfo: self.source_mute,
+			PulseSinkInputInfo: self.sink_input_mute,
 			PulseSourceInfo: self.source_mute,
 			PulseSourceOutputInfo: self.source_output_mute }.get(type(obj))
 		if not method: raise NotImplementedError(type(obj))
