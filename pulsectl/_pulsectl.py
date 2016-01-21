@@ -2,7 +2,20 @@
 
 # C Bindings
 
+import errno, functools as ft
 from ctypes import *
+
+
+class ResCheckError(Exception): pass
+
+def _check(res, gt0=False, not_null=False):
+	if res < 0 or (gt0 and res == 0) or (not_null and res):
+		errno_ = get_errno()
+		raise ResCheckError(os.strerror(errno_), res, errno_)
+	return res
+
+def check(**check_kws):
+	return ft.partial(_check, **check_kws)
 
 
 p = CDLL('libpulse.so.0')
@@ -291,24 +304,32 @@ pa_mainloop_run = p.pa_mainloop_run
 pa_mainloop_run.restype = c_int
 pa_mainloop_run.argtypes = [POINTER(PA_MAINLOOP), POINTER(c_int)]
 
+pa_mainloop_prepare = p.pa_mainloop_prepare
+pa_mainloop_prepare.restype = check()
+pa_mainloop_prepare.argtypes = [POINTER(PA_MAINLOOP), c_int]
+
+pa_mainloop_poll = p.pa_mainloop_poll
+pa_mainloop_poll.restype = check()
+pa_mainloop_poll.argtypes = [POINTER(PA_MAINLOOP)]
+
+pa_mainloop_dispatch = p.pa_mainloop_dispatch
+pa_mainloop_dispatch.restype = check()
+pa_mainloop_dispatch.argtypes = [POINTER(PA_MAINLOOP)]
+
 pa_mainloop_iterate = p.pa_mainloop_iterate
-pa_mainloop_iterate.restype = c_int
+pa_mainloop_iterate.restype = check()
 pa_mainloop_iterate.argtypes = [POINTER(PA_MAINLOOP), c_int, POINTER(c_int)]
 
 pa_mainloop_quit = p.pa_mainloop_quit
 pa_mainloop_quit.restype = None
 pa_mainloop_quit.argtypes = [POINTER(PA_MAINLOOP), c_int]
 
-pa_mainloop_dispatch = p.pa_mainloop_dispatch
-pa_mainloop_dispatch.restype = c_int
-pa_mainloop_dispatch.argtypes = [POINTER(PA_MAINLOOP)]
-
 pa_mainloop_free = p.pa_mainloop_free
-pa_mainloop_free.restype = c_int
+pa_mainloop_free.restype = None
 pa_mainloop_free.argtypes = [POINTER(PA_MAINLOOP)]
 
 pa_signal_init = p.pa_signal_init
-pa_signal_init.restype = c_int
+pa_signal_init.restype = check()
 pa_signal_init.argtypes = [POINTER(PA_MAINLOOP_API)]
 
 pa_signal_new = p.pa_signal_new
@@ -634,3 +655,17 @@ pa_context_set_subscribe_callback.argtypes = [
 ]
 
 def pa_return_value(): return pointer(c_int())
+
+def mono_time():
+	if not hasattr(mono_time, 'ts'):
+		class timespec(Structure):
+			_fields_ = [('tv_sec', c_long), ('tv_nsec', c_long)]
+		librt = CDLL('librt.so.1', use_errno=True)
+		mono_time.get = librt.clock_gettime
+		mono_time.get.argtypes = [c_int, POINTER(timespec)]
+		mono_time.ts = timespec
+	ts = mono_time.ts()
+	if mono_time.get(4, pointer(ts)) != 0:
+		err = get_errno()
+		raise OSError(err, os.strerror(err))
+	return ts.tv_sec + ts.tv_nsec * 1e-9

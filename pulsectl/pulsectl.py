@@ -206,7 +206,7 @@ class Pulse(object):
 		if c.pa_context_connect(self._ctx, self.server, 0, None) < 0:
 			self.close()
 			raise PulseError('pa_context_connect failed')
-		while self.connected is None: c.pa_mainloop_iterate(self._loop, 1, self._ret)
+		while self.connected is None: self._pulse_iterate()
 
 	def close(self):
 		if self._loop:
@@ -244,11 +244,19 @@ class Pulse(object):
 		try: self.event_callback(PulseEventInfo(ev_t, ev_fac, idx))
 		except PulseLoopStop: c.pa_mainloop_quit(self._loop, 0)
 
-	def _pulse_run(self):
+	@contextmanager
+	def _pulse_loop(self):
 		self._loop_running = True
-		try: c.pa_mainloop_run(self._loop, self._ret)
-		finally: self._loop_running = False
-		if self._loop_close: self.close()
+		try: yield self._loop
+		finally:
+			self._loop_running = False
+			if self._loop_close: self.close()
+
+	def _pulse_run(self):
+		with self._pulse_loop() as loop: c.pa_mainloop_run(loop, self._ret)
+
+	def _pulse_iterate(self, block=True):
+		with self._pulse_loop() as loop: c.pa_mainloop_iterate(loop, int(block), self._ret)
 
 	@contextmanager
 	def _pulse_op_cb(self, raw=False):
@@ -258,10 +266,28 @@ class Pulse(object):
 			cb = lambda s=True,k=act_id: self._actions.update({k: bool(s)})
 			if not raw: cb = c.PA_CONTEXT_SUCCESS_CB_T(lambda ctx,s,d,cb=cb: cb(s))
 			yield cb
-			while self._actions[act_id] is None:
-				c.pa_mainloop_iterate(self._loop, 1, self._ret)
+			while self._actions[act_id] is None: self._pulse_iterate()
 			if not self._actions[act_id]: raise PulseOperationFailed(act_id)
 		finally: self._actions.pop(act_id, None)
+
+	def _pulse_poll(self, timeout=None):
+		'''timeout should be in seconds (float),
+			0 for non-blocking poll and None (default) for no timeout.'''
+		if timeout is None: timeout = -1
+		with self._pulse_loop() as loop:
+			ts = c.mono_time()
+			ts_deadline = ts + timeout
+			while True:
+				delay = max(0, int((ts_deadline - ts) * 1000000))
+				try:
+					c.pa_mainloop_prepare(loop, delay) # usec
+					c.pa_mainloop_poll(loop)
+					c.pa_mainloop_dispatch(loop)
+				except ResCheckError as err:
+					if err.args[1] == -2: break # indicates stopped loop
+					raise
+				ts = c.mono_time()
+				if ts >= ts_deadline: break
 
 
 	def _pulse_info_cb(self, info_cls, data_list, done_cb, ctx, info, eof, userdata):
@@ -411,7 +437,10 @@ class Pulse(object):
 			and be sure to raise PulseLoopStop in a callback to stop the loop.'''
 		self.event_callback = func
 
-	def event_listen(self):
-		'Does not return until PulseLoopStop gets raised in event callback.'
+	def event_listen(self, timeout=None):
+		'''Does not return until PulseLoopStop
+				gets raised in event callback or timeout passes.
+			timeout should be in seconds (float),
+				0 for non-blocking poll and None (default) for no timeout.'''
 		assert self.event_callback
-		self._pulse_run()
+		self._pulse_poll(timeout)

@@ -37,12 +37,12 @@ Listening for server state change events::
 
 		def print_events(ev):
 			print 'Pulse event:', ev
-			### Be sure to raise PulseLoopStop when event_listen() should return
+			### Raise PulseLoopStop for event_listen() to return before timeout (if any)
 			# raise PulseLoopStop
 
 		pulse.event_mask_set('all')
 		pulse.event_callback_set(print_events)
-		pulse.event_listen()
+		pulse.event_listen(timeout=10)
 
 Misc other tinkering::
 
