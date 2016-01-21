@@ -40,7 +40,8 @@ Listening for server state change events::
 			### Be sure to raise PulseLoopStop when event_listen() should return
 			# raise PulseLoopStop
 
-		pulse.event_callback_set(print_events, 'all')
+		pulse.event_mask_set('all')
+		pulse.event_callback_set(print_events)
 		pulse.event_listen()
 
 Misc other tinkering::

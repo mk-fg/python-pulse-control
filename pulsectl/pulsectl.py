@@ -406,10 +406,9 @@ class Pulse(object):
 		with self._pulse_op_cb() as cb:
 			c.pa_context_subscribe(self._ctx, mask, cb, None)
 
-	def event_callback_set(self, func, *masks):
+	def event_callback_set(self, func):
 		'''Call event_listen() to start receiving these,
 			and be sure to raise PulseLoopStop in a callback to stop the loop.'''
-		if masks: self.event_mask_set(*masks)
 		self.event_callback = func
 
 	def event_listen(self):
