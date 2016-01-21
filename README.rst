@@ -26,6 +26,23 @@ Simple example::
     for sink in pulse.sink_list():
       pulse.volume_change_all_chans(sink, 10)
 
+Listening for server state change events::
+
+  from pulsectl import Pulse, PulseLoopStop
+
+	with Pulse('volume-increaser') as pulse:
+		# print 'Event types:', ', '.join(pulse.event_types)
+		# print 'Event facilities:', ', '.join(pulse.event_facilities)
+		# print 'Event masks:', ', '.join(pulse.event_masks)
+
+		def print_events(ev):
+			print 'Pulse event:', ev
+			### Be sure to raise PulseLoopStop when event_listen() should return
+			# raise PulseLoopStop
+
+		pulse.event_callback_set(print_events, 'all')
+		pulse.event_listen()
+
 Misc other tinkering::
 
   >>> from pulsectl import Pulse

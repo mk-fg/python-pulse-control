@@ -148,6 +148,14 @@ class PulseVolumeC(PulseVolume):
 		self.channels = cvolume.channels
 		self.values = [(round(x * 100 / c.PA_VOLUME_NORM)) for x in cvolume.values[:self.channels]]
 
+class PulseEventInfo(PulseObject):
+
+	def __init__(self, ev_t, facility, idx):
+		self.t, self.facility, self.idx = ev_t, facility, idx
+
+	def __str__(self):
+		return self._as_str(fields='t facility idx'.split())
+
 
 class Pulse(object):
 
@@ -233,7 +241,7 @@ class Pulse(object):
 		ev_fac = self._pa_subscribe_ev_fac[
 			ev & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK ]
 		ev_t = self._pa_subscribe_ev_t[ev & c.PA_SUBSCRIPTION_EVENT_TYPE_MASK]
-		try: self.event_callback(ev_fac, ev_t, idx)
+		try: self.event_callback(PulseEventInfo(ev_t, ev_fac, idx))
 		except PulseLoopStop: c.pa_mainloop_quit(self._loop, 0)
 
 	def _pulse_run(self):
