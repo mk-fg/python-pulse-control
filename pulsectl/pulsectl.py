@@ -25,6 +25,7 @@ class PulseActionDoneFlagAttr(object):
 	def __delete__(self, o): self.instances[id(o)].unset()
 
 class PulseError(Exception): pass
+class PulseLoopStop(Exception): pass
 
 class PulseObject(object):
 
@@ -248,7 +249,8 @@ class Pulse(object):
 		ev_fac = self._pa_subscribe_ev_fac[
 			ev & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK ]
 		ev_t = self._pa_subscribe_ev_t[ev & c.PA_SUBSCRIPTION_EVENT_TYPE_MASK]
-		self.event_callback(ev_fac, ev_t, idx)
+		try: self.event_callback(ev_fac, ev_t, idx)
+		except PulseLoopStop: c.pa_mainloop_quit(self._loop, 0)
 
 	def _pulse_run(self):
 		self._ret = c.pa_return_value()
@@ -414,7 +416,12 @@ class Pulse(object):
 		self._pulse_iterate() # connect & state_callback
 
 	def event_callback_set(self, func, *masks):
+		'''Call event_listen() to start receiving these,
+			and be sure to raise PulseLoopStop in a callback to stop the loop.'''
 		if masks: self.event_mask_set(*masks)
 		self.event_callback = func
 
-	def event_listen(self): self._pulse_run() # XXX: no way out
+	def event_listen(self):
+		'Does not return until PulseLoopStop gets raised in event callback.'
+		assert self.event_callback
+		self._pulse_run()

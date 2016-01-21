@@ -8,4 +8,4 @@ from .pulsectl import (
 	PulseSink, PulseSinkInfo, PulseSinkInputInfo,
 	PulseSource, PulseSourceInfo, PulseSourceOutputInfo,
 	PulseVolume, PulseVolumeC,
-	PulseError, PulseObject, Pulse )
+	PulseError, PulseLoopStop, PulseObject, Pulse )
