@@ -231,10 +231,16 @@ class Pulse(object):
 			ev & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK ]
 		ev_t = self._pa_subscribe_ev_t[ev & c.PA_SUBSCRIPTION_EVENT_TYPE_MASK]
 		try: self.event_callback(PulseEventInfo(ev_t, ev_fac, idx))
-		except PulseLoopStop: c.pa_mainloop_quit(self._loop, 0)
+		except PulseLoopStop: self._loop_stop = True
 
 	@contextmanager
 	def _pulse_loop(self):
+		if self._loop_running:
+			raise PulseError( 'Running blocking pulse operations'
+					' from pulse callbacks is not supported by this python module.'
+				' This would require threads or proper asyncio/twisted-like async code.'
+				' Workaround can be to raise PulseLoopStop in callback, doing whatever'
+					' event-handling pulse calls synchronously and then resuming event_listen() loop.' )
 		self._loop_running = True
 		try: yield self._loop
 		finally:
@@ -274,6 +280,9 @@ class Pulse(object):
 				except c.ResCheckError as err:
 					if err.args[1] == -2: break # indicates stopped loop
 					raise
+				if self._loop_stop:
+					self._loop_stop = False
+					break
 				ts = c.mono_time()
 				if ts_deadline and ts >= ts_deadline: break
 
@@ -438,6 +447,7 @@ class Pulse(object):
 		'''Does not return until PulseLoopStop
 				gets raised in event callback or timeout passes.
 			timeout should be in seconds (float),
-				0 for non-blocking poll and None (default) for no timeout.'''
+				0 for non-blocking poll and None (default) for no timeout.
+			Do not run any pulse operations from these callbacks.'''
 		assert self.event_callback
 		self._pulse_poll(timeout)
