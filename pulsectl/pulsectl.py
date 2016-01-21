@@ -241,7 +241,7 @@ class Pulse(object):
 				' This would require threads or proper asyncio/twisted-like async code.'
 				' Workaround can be to raise PulseLoopStop in callback, doing whatever'
 					' event-handling pulse calls synchronously and then resuming event_listen() loop.' )
-		self._loop_running = True
+		self._loop_running, self._loop_stop = True, False
 		try: yield self._loop
 		finally:
 			self._loop_running = False
@@ -280,9 +280,7 @@ class Pulse(object):
 				except c.ResCheckError as err:
 					if err.args[1] == -2: break # indicates stopped loop
 					raise
-				if self._loop_stop:
-					self._loop_stop = False
-					break
+				if self._loop_stop: break
 				ts = c.mono_time()
 				if ts_deadline and ts >= ts_deadline: break
 
