@@ -30,19 +30,19 @@ Listening for server state change events::
 
   from pulsectl import Pulse, PulseLoopStop
 
-	with Pulse('event-printer') as pulse:
-		# print 'Event types:', ', '.join(pulse.event_types)
-		# print 'Event facilities:', ', '.join(pulse.event_facilities)
-		# print 'Event masks:', ', '.join(pulse.event_masks)
+  with Pulse('event-printer') as pulse:
+    # print 'Event types:', ', '.join(pulse.event_types)
+    # print 'Event facilities:', ', '.join(pulse.event_facilities)
+    # print 'Event masks:', ', '.join(pulse.event_masks)
 
-		def print_events(ev):
-			print 'Pulse event:', ev
-			### Raise PulseLoopStop for event_listen() to return before timeout (if any)
-			# raise PulseLoopStop
+    def print_events(ev):
+      print 'Pulse event:', ev
+      ### Raise PulseLoopStop for event_listen() to return before timeout (if any)
+      # raise PulseLoopStop
 
-		pulse.event_mask_set('all')
-		pulse.event_callback_set(print_events)
-		pulse.event_listen(timeout=10)
+    pulse.event_mask_set('all')
+    pulse.event_callback_set(print_events)
+    pulse.event_listen(timeout=10)
 
 Misc other tinkering::
 
