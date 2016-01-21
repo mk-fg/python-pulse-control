@@ -2,7 +2,7 @@
 
 # C Bindings
 
-import errno, functools as ft
+import os, errno, functools as ft
 from ctypes import *
 
 

@@ -283,7 +283,7 @@ class Pulse(object):
 					c.pa_mainloop_prepare(loop, delay) # usec
 					c.pa_mainloop_poll(loop)
 					c.pa_mainloop_dispatch(loop)
-				except ResCheckError as err:
+				except c.ResCheckError as err:
 					if err.args[1] == -2: break # indicates stopped loop
 					raise
 				ts = c.mono_time()
