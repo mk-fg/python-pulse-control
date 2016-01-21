@@ -66,6 +66,7 @@ class PA_MAINLOOP(Structure): pass
 class PA_STREAM(Structure): pass
 class PA_MAINLOOP_API(Structure): pass
 class PA_CONTEXT(Structure): pass
+class PA_PROPLIST(Structure): pass
 class PA_OPERATION(Structure): pass
 class PA_IO_EVENT(Structure): pass
 
@@ -114,7 +115,12 @@ class PA_SINK_INPUT_INFO(Structure):
 		('sink_usec', PA_USEC_T),
 		('resample_method', c_char_p),
 		('driver', c_char_p),
-		('mute', c_int)
+		('mute', c_int),
+		('proplist', POINTER(PA_PROPLIST)),
+		('corked', c_int),
+		('mute', c_int),
+		('has_volume', c_int),
+		('volume_writable', c_int)
 	]
 
 
@@ -133,7 +139,7 @@ class PA_SINK_INFO(Structure):
 		('latency', PA_USEC_T),
 		('driver', c_char_p),
 		('flags', c_int),
-		('proplist', POINTER(c_int)),
+		('proplist', POINTER(PA_PROPLIST)),
 		('configured_latency', PA_USEC_T),
 		('base_volume', c_int),
 		('state', c_int),
@@ -158,7 +164,7 @@ class PA_SOURCE_OUTPUT_INFO(Structure):
 		('source_usec', PA_USEC_T),
 		('resample_method', c_char_p),
 		('driver', c_char_p),
-		('proplist', POINTER(c_int)),
+		('proplist', POINTER(PA_PROPLIST)),
 		('corked', c_int),
 		('volume', PA_CVOLUME),
 		('mute', c_int),
@@ -182,7 +188,7 @@ class PA_SOURCE_INFO(Structure):
 		('latency', PA_USEC_T),
 		('driver', c_char_p),
 		('flags', c_int),
-		('proplist', POINTER(c_int)),
+		('proplist', POINTER(PA_PROPLIST)),
 		('configured_latency', PA_USEC_T),
 		('base_volume', c_int),
 		('state', c_int),
@@ -222,7 +228,7 @@ class PA_CARD_INFO(Structure):
 		('n_profiles', c_uint32),
 		('profiles', POINTER(PA_CARD_PROFILE_INFO)),
 		('active_profile', POINTER(PA_CARD_PROFILE_INFO)),
-		('proplist', POINTER(c_int)),
+		('proplist', POINTER(PA_PROPLIST)),
 	]
 
 
@@ -680,6 +686,15 @@ pa_context_set_subscribe_callback.argtypes = [
 	PA_SUBSCRIBE_CB_T,
 	c_void_p
 ]
+
+pa_proplist_iterate = p.pa_proplist_iterate
+pa_proplist_iterate.restype = c_char_p
+pa_proplist_iterate.argtypes = [POINTER(PA_PROPLIST), POINTER(c_void_p)]
+
+pa_proplist_gets = p.pa_proplist_gets
+pa_proplist_gets.restype = c_char_p
+pa_proplist_gets.argtypes = [POINTER(PA_PROPLIST), c_char_p]
+
 
 def pa_return_value(): return pointer(c_int())
 

@@ -55,6 +55,14 @@ Misc other tinkering::
   >>> pulse.sink_input_list()
   [<PulseSinkInputInfo at 7fa06562d3d0 - index=181L, mute=0, name='mpv Media Player', channels=2, volumes='25.0%, 25.0%'>]
 
+  >>> pulse.sink_input_list()[0].proplist
+  {'application.icon_name': 'mpv',
+   'application.language': 'C',
+   'application.name': 'mpv Media Player',
+   ...
+   'native-protocol.version': '30',
+   'window.x11.display': ':1.0'}
+
   >>> pulse.source_list()
   [<PulseSourceInfo at 7fcb0615d8d0 - desc='Monitor of Built-in Audio', index=0L, mute=0, name='alsa-speakers.monitor', channels=2, volumes='100.0%, 100.0%'>,
    <PulseSourceInfo at 7fcb0615da10 - desc='Built-in Audio', index=1L, mute=0, name='alsa-mic', channels=2, volumes='100.0%, 100.0%'>]

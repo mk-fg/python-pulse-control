@@ -18,6 +18,12 @@ class PulseLoopStop(Exception): pass
 class PulseObject(object):
 
 	def __init__(self, struct=None, *field_data_list, **field_data_dict):
+		if struct and hasattr(struct, 'proplist'): # copied in a special way
+			self.proplist, state = dict(), c.c_void_p()
+			while True:
+				k = c.pa_proplist_iterate(struct.proplist, c.byref(state))
+				if not k: break
+				self.proplist[k] = c.pa_proplist_gets(struct.proplist, k)
 		field_data, fields = dict(), getattr(self, 'c_struct_fields', list())
 		if isinstance(fields, bytes): fields = self.c_struct_fields = fields.split()
 		if field_data_list: field_data.update(zip(fields, field_data_list))
