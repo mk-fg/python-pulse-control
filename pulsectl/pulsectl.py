@@ -175,8 +175,10 @@ class Pulse(object):
 	def init(self):
 		self._pa_signal_cb = c.PA_SIGNAL_CB_T(self._pulse_signal_cb)
 		self._pa_state_cb = c.PA_STATE_CB_T(self._pulse_state_cb)
+		self._pa_subscribe_cb = c.PA_SUBSCRIBE_CB_T(self._pulse_subscribe_cb)
 
 		self._loop = c.pa_mainloop_new()
+		self._loop_running = self._loop_close = False
 		self._api = c.pa_mainloop_get_api(self._loop)
 
 		if c.pa_signal_init(self._api) != 0:
@@ -187,15 +189,37 @@ class Pulse(object):
 
 		self._ctx = c.pa_context_new(self._api, self.name)
 		c.pa_context_set_state_callback(self._ctx, self._pa_state_cb, None)
-		self._action_done = False
 
+		c.pa_context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
+		self._pa_subscribe_ev_t = dict(
+			(getattr(c, 'PA_SUBSCRIPTION_EVENT_{}'.format(k.upper())), k)
+			for k in 'new change remove'.split() )
+		self._pa_subscribe_ev_fac, self._pa_subscribe_masks = dict(), dict()
+		for k, n in vars(c).viewitems():
+			if k.startswith('PA_SUBSCRIPTION_EVENT_'):
+				if k.endswith('_MASK'): continue
+				k = k[22:].lower()
+				if k in self._pa_subscribe_ev_t.values(): continue
+				assert n & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK == n, [k, n]
+				self._pa_subscribe_ev_fac[n] = k
+			elif k.startswith('PA_SUBSCRIPTION_MASK_'): self._pa_subscribe_masks[k[21:].lower()] = n
+		self.event_types = sorted(self._pa_subscribe_ev_t.viewvalues())
+		self.event_facilities = sorted(self._pa_subscribe_ev_fac.viewvalues())
+		self.event_masks = sorted(self._pa_subscribe_masks.keys())
+		self.event_callback = None
+
+		self._action_done = False
 		if c.pa_context_connect(self._ctx, self.server, 0, None) < 0:
 			self.close()
 			raise PulseError('pa_context_connect failed')
-		self._pulse_iterate()
+		self._pulse_iterate() # connect & state_callback
 
 	def close(self):
 		if self._loop:
+			if self._loop_running:
+				c.pa_mainloop_quit(self._loop, 0)
+				self._loop_close = True
+				return
 			try:
 				if self._ctx: c.pa_context_disconnect(self._ctx)
 				c.pa_signal_done()
@@ -210,7 +234,7 @@ class Pulse(object):
 		if sig in [signal.SIGINT, signal.SIGTERM]: self.close()
 		return 0
 
-	def _pulse_state_cb(self, ctx, b):
+	def _pulse_state_cb(self, ctx, userdata):
 		state = c.pa_context_get_state(ctx)
 		if state >= c.PA_CONTEXT_READY:
 			if state == c.PA_CONTEXT_READY: self.connected = True
@@ -219,9 +243,19 @@ class Pulse(object):
 			self._action_done = True
 		return 0
 
+	def _pulse_subscribe_cb(self, ctx, ev, idx, userdata):
+		if not self.event_callback: return
+		ev_fac = self._pa_subscribe_ev_fac[
+			ev & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK ]
+		ev_t = self._pa_subscribe_ev_t[ev & c.PA_SUBSCRIPTION_EVENT_TYPE_MASK]
+		self.event_callback(ev_fac, ev_t, idx)
+
 	def _pulse_run(self):
 		self._ret = c.pa_return_value()
-		c.pa_mainloop_run(self._loop, self._ret)
+		self._loop_running = True
+		try: c.pa_mainloop_run(self._loop, self._ret)
+		finally: self._loop_running = False
+		if self._loop_close: self.close()
 
 	def _pulse_iterate(self, block=True):
 		self._ret = c.pa_return_value()
@@ -295,8 +329,8 @@ class Pulse(object):
 			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
 			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
 			self._action_done = False
-			CONTEXT = c.PA_CONTEXT_SUCCESS_CB_T(self._action_done.set_callback)
-			self._op = method(self._ctx, index, *(list(pulse_call) + [CONTEXT, None]))
+			CB = c.PA_CONTEXT_SUCCESS_CB_T(self._action_done.set_callback)
+			self._op = method(self._ctx, index, *(list(pulse_call) + [CB, None]))
 			self._pulse_iterate()
 		func_args = list(inspect.getargspec(func))
 		func_args[0] = ['index'] + list(func_args[0])
@@ -369,3 +403,18 @@ class Pulse(object):
 	def volume_get_all_chans(self, obj):
 		assert isinstance(obj, PulseObject), [type(obj), obj]
 		return int(sum(obj.volume.values) / len(obj.volume.values))
+
+
+	def event_mask_set(self, *masks):
+		mask = 0
+		for m in masks: mask |= self._pa_subscribe_masks[m]
+		self._action_done = False
+		CB = c.PA_CONTEXT_SUCCESS_CB_T(self._action_done.set_callback)
+		c.pa_context_subscribe(self._ctx, mask, CB, None)
+		self._pulse_iterate() # connect & state_callback
+
+	def event_callback_set(self, func, *masks):
+		if masks: self.event_mask_set(*masks)
+		self.event_callback = func
+
+	def event_listen(self): self._pulse_run() # XXX: no way out

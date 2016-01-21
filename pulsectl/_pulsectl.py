@@ -19,6 +19,35 @@ PA_CONTEXT_READY = 4
 PA_CONTEXT_FAILED = 5
 PA_CONTEXT_TERMINATED = 6
 
+PA_SUBSCRIPTION_MASK_NULL = 0x0000
+PA_SUBSCRIPTION_MASK_SINK = 0x0001
+PA_SUBSCRIPTION_MASK_SOURCE = 0x0002
+PA_SUBSCRIPTION_MASK_SINK_INPUT = 0x0004
+PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT = 0x0008
+PA_SUBSCRIPTION_MASK_MODULE = 0x0010
+PA_SUBSCRIPTION_MASK_CLIENT = 0x0020
+PA_SUBSCRIPTION_MASK_SAMPLE_CACHE = 0x0040
+PA_SUBSCRIPTION_MASK_SERVER = 0x0080
+PA_SUBSCRIPTION_MASK_AUTOLOAD = 0x0100
+PA_SUBSCRIPTION_MASK_CARD = 0x0200
+PA_SUBSCRIPTION_MASK_ALL = 0x02ff
+
+PA_SUBSCRIPTION_EVENT_SINK = 0x0000
+PA_SUBSCRIPTION_EVENT_SOURCE = 0x0001
+PA_SUBSCRIPTION_EVENT_SINK_INPUT = 0x0002
+PA_SUBSCRIPTION_EVENT_SOURCE_OUTPUT = 0x0003
+PA_SUBSCRIPTION_EVENT_MODULE = 0x0004
+PA_SUBSCRIPTION_EVENT_CLIENT = 0x0005
+PA_SUBSCRIPTION_EVENT_SAMPLE_CACHE = 0x0006
+PA_SUBSCRIPTION_EVENT_SERVER = 0x0007
+PA_SUBSCRIPTION_EVENT_AUTOLOAD = 0x0008
+PA_SUBSCRIPTION_EVENT_CARD = 0x0009
+PA_SUBSCRIPTION_EVENT_FACILITY_MASK = 0x000F
+PA_SUBSCRIPTION_EVENT_NEW = 0x0000
+PA_SUBSCRIPTION_EVENT_CHANGE = 0x0010
+PA_SUBSCRIPTION_EVENT_REMOVE = 0x0020
+PA_SUBSCRIPTION_EVENT_TYPE_MASK = 0x0030
+
 
 class PA_MAINLOOP(Structure): pass
 class PA_STREAM(Structure): pass
@@ -239,6 +268,12 @@ PA_CARD_INFO_CB_T = CFUNCTYPE(None,
 	c_int,
 	c_void_p)
 
+PA_SUBSCRIBE_CB_T = CFUNCTYPE(c_void_p,
+	POINTER(PA_CONTEXT),
+	c_int,
+	c_int,
+	c_void_p)
+
 
 pa_strerror = p.pa_strerror
 pa_strerror.restype = c_char_p
@@ -261,7 +296,7 @@ pa_mainloop_iterate.restype = c_int
 pa_mainloop_iterate.argtypes = [POINTER(PA_MAINLOOP), c_int, POINTER(c_int)]
 
 pa_mainloop_quit = p.pa_mainloop_quit
-pa_mainloop_quit.restype = c_int
+pa_mainloop_quit.restype = None
 pa_mainloop_quit.argtypes = [POINTER(PA_MAINLOOP), c_int]
 
 pa_mainloop_dispatch = p.pa_mainloop_dispatch
@@ -578,6 +613,23 @@ pa_context_set_card_profile_by_index.argtypes = [
 	c_uint32,
 	c_char_p,
 	PA_CONTEXT_SUCCESS_CB_T,
+	c_void_p
+]
+
+pa_context_subscribe = p.pa_context_subscribe
+pa_context_subscribe.restype = POINTER(PA_OPERATION)
+pa_context_subscribe.argtypes = [
+	POINTER(PA_CONTEXT),
+	c_int,
+	PA_CONTEXT_SUCCESS_CB_T,
+	c_void_p
+]
+
+pa_context_set_subscribe_callback = p.pa_context_set_subscribe_callback
+pa_context_set_subscribe_callback.restype = None
+pa_context_set_subscribe_callback.argtypes = [
+	POINTER(PA_CONTEXT),
+	PA_SUBSCRIBE_CB_T,
 	c_void_p
 ]
 
