@@ -4,7 +4,7 @@ from __future__ import print_function
 import itertools as it, operator as op, functools as ft
 from collections import defaultdict
 from contextlib import contextmanager
-import inspect, signal
+import inspect
 
 from . import _pulsectl as c
 
@@ -168,19 +168,12 @@ class Pulse(object):
 		self.init()
 
 	def init(self):
-		self._pa_signal_cb = c.PA_SIGNAL_CB_T(self._pulse_signal_cb)
 		self._pa_state_cb = c.PA_STATE_CB_T(self._pulse_state_cb)
 		self._pa_subscribe_cb = c.PA_SUBSCRIBE_CB_T(self._pulse_subscribe_cb)
 
 		self._loop = c.pa_mainloop_new()
 		self._loop_running = self._loop_close = False
 		self._api = c.pa_mainloop_get_api(self._loop)
-
-		if c.pa_signal_init(self._api) != 0:
-			raise PulseError('pa_signal_init failed')
-
-		c.pa_signal_new(2, self._pa_signal_cb, None)
-		c.pa_signal_new(15, self._pa_signal_cb, None)
 
 		self._ctx, self._ret = c.pa_context_new(self._api, self.name), c.pa_return_value()
 		c.pa_context_set_state_callback(self._ctx, self._pa_state_cb, None)
@@ -216,17 +209,12 @@ class Pulse(object):
 				return
 			try:
 				if self._ctx: c.pa_context_disconnect(self._ctx)
-				c.pa_signal_done()
 				c.pa_mainloop_free(self._loop)
 			finally: self._ctx = self._loop = None
 
 	def __enter__(self): return self
 	def __exit__(self, err_t, err, err_tb): self.close()
 
-
-	def _pulse_signal_cb(self, api, e, sig, userdata):
-		if sig in [signal.SIGINT, signal.SIGTERM]: self.close()
-		return 0
 
 	def _pulse_state_cb(self, ctx, userdata):
 		state = c.pa_context_get_state(ctx)
