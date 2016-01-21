@@ -30,7 +30,7 @@ Listening for server state change events::
 
   from pulsectl import Pulse, PulseLoopStop
 
-	with Pulse('volume-increaser') as pulse:
+	with Pulse('event-printer') as pulse:
 		# print 'Event types:', ', '.join(pulse.event_types)
 		# print 'Event facilities:', ', '.join(pulse.event_facilities)
 		# print 'Event masks:', ', '.join(pulse.event_masks)
