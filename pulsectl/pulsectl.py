@@ -11,6 +11,7 @@ from . import _pulsectl as c
 
 class PulseError(Exception): pass
 class PulseOperationFailed(PulseError): pass
+class PulseIndexError(PulseError): pass
 
 class PulseLoopStop(Exception): pass
 
@@ -261,12 +262,11 @@ class Pulse(object):
 	def _pulse_poll(self, timeout=None):
 		'''timeout should be in seconds (float),
 			0 for non-blocking poll and None (default) for no timeout.'''
-		if timeout is None: timeout = -1
 		with self._pulse_loop() as loop:
 			ts = c.mono_time()
-			ts_deadline = ts + timeout
+			ts_deadline = timeout and (ts + timeout)
 			while True:
-				delay = max(0, int((ts_deadline - ts) * 1000000))
+				delay = max(0, int((ts_deadline - ts) * 1000000)) if ts_deadline else -1
 				try:
 					c.pa_mainloop_prepare(loop, delay) # usec
 					c.pa_mainloop_poll(loop)
@@ -275,7 +275,7 @@ class Pulse(object):
 					if err.args[1] == -2: break # indicates stopped loop
 					raise
 				ts = c.mono_time()
-				if ts >= ts_deadline: break
+				if ts_deadline and ts >= ts_deadline: break
 
 
 	def _pulse_info_cb(self, info_cls, data_list, done_cb, ctx, info, eof, userdata):
@@ -286,51 +286,60 @@ class Pulse(object):
 		return 0
 
 	def _pulse_get_list(cb_t, pulse_func, info_cls):
-		def _wrapper(self):
+		def _wrapper(self, index=None):
 			data = list()
 			with self._pulse_op_cb(raw=True) as cb:
 				cb = cb_t(ft.partial(self._pulse_info_cb, info_cls, data, cb))
-				pulse_func(self._ctx, cb, None)
-			return _wrapper.func(self, data or list()) if _wrapper.func else data
+				pulse_func(self._ctx, *([index, cb, None] if index is not None else [cb, None]))
+			data = data or list()
+			if index is not None:
+				if not data: raise PulseIndexError(index)
+				data, = data
+			return _wrapper.func(self, data) if _wrapper.func else data
 		_wrapper.func = None
 		def _add_wrap_doc(func):
 			func.func_name = '...'
 			func.func_doc = 'Signature: func()'
 			return func
-		def _decorator_or_method(func_or_self=None):
-			if func_or_self.__class__.__name__ == 'Pulse': return _wrapper(func_or_self)
+		def _decorator_or_method(func_or_self=None, index=None):
+			if func_or_self.__class__.__name__ == 'Pulse':
+				return _wrapper(func_or_self, index)
 			elif func_or_self: _wrapper.func = func_or_self
+			assert index is None, index
 			return _wrapper
 		_add_wrap_doc(_wrapper)
 		_add_wrap_doc(_decorator_or_method)
 		return _decorator_or_method
 
-	def _pulse_fill_clients(self, data):
-		if not data: return list()
-		clist = self.client_list()
-		for d in data:
-			for c in clist:
-				if c.index == d.client:
-					d.client = c
-					break
-		return data
-
 	sink_input_list = _pulse_get_list(
 		c.PA_SINK_INPUT_INFO_CB_T,
-		c.pa_context_get_sink_input_info_list, PulseSinkInputInfo )(_pulse_fill_clients)
+		c.pa_context_get_sink_input_info_list, PulseSinkInputInfo )
+	sink_input_info = _pulse_get_list(
+		c.PA_SINK_INPUT_INFO_CB_T,
+		c.pa_context_get_sink_input_info, PulseSinkInputInfo )
 	source_output_list = _pulse_get_list(
 		c.PA_SOURCE_OUTPUT_INFO_CB_T,
-		c.pa_context_get_source_output_info_list, PulseSourceOutputInfo )(_pulse_fill_clients)
+		c.pa_context_get_source_output_info_list, PulseSourceOutputInfo )
+	source_output_info = _pulse_get_list(
+		c.PA_SOURCE_OUTPUT_INFO_CB_T,
+		c.pa_context_get_source_output_info, PulseSourceOutputInfo )
 
 	sink_list = _pulse_get_list(
 		c.PA_SINK_INFO_CB_T, c.pa_context_get_sink_info_list, PulseSinkInfo )
+	sink_info = _pulse_get_list(
+		c.PA_SINK_INFO_CB_T, c.pa_context_get_sink_info_by_index, PulseSinkInfo )
 	source_list = _pulse_get_list(
 		c.PA_SOURCE_INFO_CB_T, c.pa_context_get_source_info_list, PulseSourceInfo )
+	source_info = _pulse_get_list(
+		c.PA_SOURCE_INFO_CB_T, c.pa_context_get_source_info_by_index, PulseSourceInfo )
 	card_list = _pulse_get_list(
 		c.PA_CARD_INFO_CB_T, c.pa_context_get_card_info_list, PulseCard )
+	card_info = _pulse_get_list(
+		c.PA_CARD_INFO_CB_T, c.pa_context_get_card_info_by_index, PulseCard )
 	client_list = _pulse_get_list(
 		c.PA_CLIENT_INFO_CB_T, c.pa_context_get_client_info_list, PulseClient )
-
+	client_info = _pulse_get_list(
+		c.PA_CLIENT_INFO_CB_T, c.pa_context_get_client_info, PulseClient )
 
 	def _pulse_method_call(method_or_func, func=None):
 		if func is None: func_method, func = None, method_or_func

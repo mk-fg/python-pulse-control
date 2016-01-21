@@ -388,11 +388,28 @@ pa_context_get_sink_input_info_list.argtypes = [
 	PA_SINK_INPUT_INFO_CB_T,
 	c_void_p
 ]
+pa_context_get_sink_input_info = p.pa_context_get_sink_input_info
+pa_context_get_sink_input_info.restype = POINTER(c_int)
+pa_context_get_sink_input_info.argtypes = [
+	POINTER(PA_CONTEXT),
+	c_uint32,
+	PA_SINK_INPUT_INFO_CB_T,
+	c_void_p
+]
 
 pa_context_get_sink_info_list = p.pa_context_get_sink_info_list
 pa_context_get_sink_info_list.restype = POINTER(c_int)
 pa_context_get_sink_info_list.argtypes = [
 	POINTER(PA_CONTEXT),
+	PA_SINK_INFO_CB_T,
+	c_void_p
+]
+
+pa_context_get_sink_info_by_index = p.pa_context_get_sink_info_by_index
+pa_context_get_sink_info_by_index.restype = POINTER(c_int)
+pa_context_get_sink_info_by_index.argtypes = [
+	POINTER(PA_CONTEXT),
+	c_uint32,
 	PA_SINK_INFO_CB_T,
 	c_void_p
 ]
@@ -484,6 +501,15 @@ pa_context_get_source_output_info_list.argtypes = [
 	c_void_p
 ]
 
+pa_context_get_source_output_info = p.pa_context_get_source_output_info
+pa_context_get_source_output_info.restype = POINTER(c_int)
+pa_context_get_source_output_info.argtypes = [
+	POINTER(PA_CONTEXT),
+	c_uint32,
+	PA_SOURCE_OUTPUT_INFO_CB_T,
+	c_void_p
+]
+
 pa_context_move_source_output_by_index = p.pa_context_move_source_output_by_index
 pa_context_move_source_output_by_index.restype = POINTER(c_int)
 pa_context_move_source_output_by_index.argtypes = [
@@ -523,18 +549,19 @@ pa_context_kill_source_output.argtypes = [
 	c_void_p
 ]
 
-pa_context_get_source_info_by_index = p.pa_context_get_source_info_by_index
-pa_context_get_source_info_by_index.restype = POINTER(c_int)
-pa_context_get_source_info_by_index.argtypes = [
+pa_context_get_source_info_list = p.pa_context_get_source_info_list
+pa_context_get_source_info_list.restype = POINTER(c_int)
+pa_context_get_source_info_list.argtypes = [
 	POINTER(PA_CONTEXT),
 	PA_SOURCE_INFO_CB_T,
 	c_void_p
 ]
 
-pa_context_get_source_info_list = p.pa_context_get_source_info_list
-pa_context_get_source_info_list.restype = POINTER(c_int)
-pa_context_get_source_info_list.argtypes = [
+pa_context_get_source_info_by_index = p.pa_context_get_source_info_by_index
+pa_context_get_source_info_by_index.restype = POINTER(c_int)
+pa_context_get_source_info_by_index.argtypes = [
 	POINTER(PA_CONTEXT),
+	c_uint32,
 	PA_SOURCE_INFO_CB_T,
 	c_void_p
 ]
