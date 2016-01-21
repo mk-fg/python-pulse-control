@@ -3,28 +3,15 @@ from __future__ import print_function
 
 import itertools as it, operator as op, functools as ft
 from collections import defaultdict
+from contextlib import contextmanager
 import inspect, signal
 
 from . import _pulsectl as c
 
 
-class PulseActionDoneFlag(object):
-	def __init__(self): self.state = False
-	def set(self, state=True): self.state = state
-	def set_callback(self, *args, **kws):
-		self.set()
-		return 0
-	def unset(self): self.state = False
-	def __nonzero__(self): return bool(self.state)
-	def __repr__(self): return '<PulseActionDoneFlag: {}>'.format(self.state)
-
-class PulseActionDoneFlagAttr(object):
-	def __init__(self): self.instances = defaultdict(PulseActionDoneFlag)
-	def __get__(self, o, cls): return self.instances[id(o)]
-	def __set__(self, o, state): self.instances[id(o)].set(state)
-	def __delete__(self, o): self.instances[id(o)].unset()
-
 class PulseError(Exception): pass
+class PulseOperationFailed(PulseError): pass
+
 class PulseLoopStop(Exception): pass
 
 class PulseObject(object):
@@ -164,13 +151,12 @@ class PulseVolumeC(PulseVolume):
 
 class Pulse(object):
 
-	_action_done = PulseActionDoneFlagAttr()
-
 	def __init__(self, client_name=None, server=None):
 		self.name = client_name or 'pulsectl'
-		self.server, self.connected = server, False
-		self._ret = self._ctx = self._op = self._loop = self._api = None
-		self._data = list()
+		self.server, self.connected = server, None
+		self._ret = self._ctx = self._loop = self._api = None
+		self._actions, self._action_ids = dict(),\
+			it.chain.from_iterable(it.imap(xrange, it.repeat(2**30)))
 		self.init()
 
 	def init(self):
@@ -188,7 +174,7 @@ class Pulse(object):
 		c.pa_signal_new(2, self._pa_signal_cb, None)
 		c.pa_signal_new(15, self._pa_signal_cb, None)
 
-		self._ctx = c.pa_context_new(self._api, self.name)
+		self._ctx, self._ret = c.pa_context_new(self._api, self.name), c.pa_return_value()
 		c.pa_context_set_state_callback(self._ctx, self._pa_state_cb, None)
 
 		c.pa_context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
@@ -209,11 +195,10 @@ class Pulse(object):
 		self.event_masks = sorted(self._pa_subscribe_masks.keys())
 		self.event_callback = None
 
-		self._action_done = False
 		if c.pa_context_connect(self._ctx, self.server, 0, None) < 0:
 			self.close()
 			raise PulseError('pa_context_connect failed')
-		self._pulse_iterate() # connect & state_callback
+		while self.connected is None: c.pa_mainloop_iterate(self._loop, 1, self._ret)
 
 	def close(self):
 		if self._loop:
@@ -241,7 +226,6 @@ class Pulse(object):
 			if state == c.PA_CONTEXT_READY: self.connected = True
 			elif state == c.PA_CONTEXT_FAILED: self.connected = False
 			# c.PA_CONTEXT_TERMINATED also happens here on clean disconnect
-			self._action_done = True
 		return 0
 
 	def _pulse_subscribe_cb(self, ctx, ev, idx, userdata):
@@ -253,35 +237,38 @@ class Pulse(object):
 		except PulseLoopStop: c.pa_mainloop_quit(self._loop, 0)
 
 	def _pulse_run(self):
-		self._ret = c.pa_return_value()
 		self._loop_running = True
 		try: c.pa_mainloop_run(self._loop, self._ret)
 		finally: self._loop_running = False
 		if self._loop_close: self.close()
 
-	def _pulse_iterate(self, block=True):
-		self._ret = c.pa_return_value()
-		c.pa_mainloop_iterate(self._loop, int(block), self._ret)
-		while not self._action_done:
-			c.pa_mainloop_iterate(self._loop, int(block), self._ret)
+	@contextmanager
+	def _pulse_op_cb(self, raw=False):
+		act_id = next(self._action_ids)
+		self._actions[act_id] = None
+		try:
+			cb = lambda s=True,k=act_id: self._actions.update({k: bool(s)})
+			if not raw: cb = c.PA_CONTEXT_SUCCESS_CB_T(lambda ctx,s,d,cb=cb: cb(s))
+			yield cb
+			while self._actions[act_id] is None:
+				c.pa_mainloop_iterate(self._loop, 1, self._ret)
+			if not self._actions[act_id]: raise PulseOperationFailed(act_id)
+		finally: self._actions.pop(act_id, None)
 
 
-	def _pulse_info_cb(self, info_cls, ctx, info, eof, userdata):
+	def _pulse_info_cb(self, info_cls, data_list, done_cb, ctx, info, eof, userdata):
 		if eof:
-			self._action_done = True
+			done_cb()
 			return 0
-		self._data.append(info_cls(info[0]))
+		data_list.append(info_cls(info[0]))
 		return 0
 
 	def _pulse_get_list(cb_t, pulse_func, info_cls):
 		def _wrapper(self):
-			self._action_done = False
-			CB = cb_t(ft.partial(self._pulse_info_cb, info_cls))
-			self._op = pulse_func(self._ctx, CB, None)
-			self._pulse_iterate()
-			assert self._action_done
-			data = list(self._data)
-			del self._data[:]
+			data = list()
+			with self._pulse_op_cb(raw=True) as cb:
+				cb = cb_t(ft.partial(self._pulse_info_cb, info_cls, data, cb))
+				pulse_func(self._ctx, cb, None)
 			return _wrapper.func(self, data or list()) if _wrapper.func else data
 		_wrapper.func = None
 		def _add_wrap_doc(func):
@@ -330,10 +317,8 @@ class Pulse(object):
 			method, pulse_call = func_method, func(*args, **kws)
 			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
 			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
-			self._action_done = False
-			CB = c.PA_CONTEXT_SUCCESS_CB_T(self._action_done.set_callback)
-			self._op = method(self._ctx, index, *(list(pulse_call) + [CB, None]))
-			self._pulse_iterate()
+			with self._pulse_op_cb() as cb:
+				method(self._ctx, index, *(list(pulse_call) + [cb, None]))
 		func_args = list(inspect.getargspec(func))
 		func_args[0] = ['index'] + list(func_args[0])
 		_wrapper.func_name = '...'
@@ -410,10 +395,8 @@ class Pulse(object):
 	def event_mask_set(self, *masks):
 		mask = 0
 		for m in masks: mask |= self._pa_subscribe_masks[m]
-		self._action_done = False
-		CB = c.PA_CONTEXT_SUCCESS_CB_T(self._action_done.set_callback)
-		c.pa_context_subscribe(self._ctx, mask, CB, None)
-		self._pulse_iterate() # connect & state_callback
+		with self._pulse_op_cb() as cb:
+			c.pa_context_subscribe(self._ctx, mask, cb, None)
 
 	def event_callback_set(self, func, *masks):
 		'''Call event_listen() to start receiving these,
