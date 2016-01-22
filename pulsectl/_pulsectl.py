@@ -326,6 +326,10 @@ pa_mainloop_iterate = p.pa_mainloop_iterate
 pa_mainloop_iterate.restype = check()
 pa_mainloop_iterate.argtypes = [POINTER(PA_MAINLOOP), c_int, POINTER(c_int)]
 
+pa_mainloop_wakeup = p.pa_mainloop_wakeup
+pa_mainloop_wakeup.restype = None
+pa_mainloop_wakeup.argtypes = [POINTER(PA_MAINLOOP)]
+
 pa_mainloop_quit = p.pa_mainloop_quit
 pa_mainloop_quit.restype = None
 pa_mainloop_quit.argtypes = [POINTER(PA_MAINLOOP), c_int]

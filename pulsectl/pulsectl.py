@@ -455,3 +455,11 @@ class Pulse(object):
 			Do not run any pulse operations from these callbacks.'''
 		assert self.event_callback
 		self._pulse_poll(timeout)
+
+	def event_listen_stop(self, raise_if_not_running=False):
+		'Stop event_listen() loop from e.g. another thread. No-op if loop is not running.'
+		if not self._loop_running:
+			if raise_if_not_running: raise PulseError('Pulse eventloop does not seem to be running')
+			return
+		self._loop_stop = True
+		c.pa_mainloop_wakeup(self._loop)
