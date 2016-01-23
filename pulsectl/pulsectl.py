@@ -18,12 +18,6 @@ class PulseLoopStop(Exception): pass
 class PulseObject(object):
 
 	def __init__(self, struct=None, *field_data_list, **field_data_dict):
-		if struct and hasattr(struct, 'proplist'): # copied in a special way
-			self.proplist, state = dict(), c.c_void_p()
-			while True:
-				k = c.pa_proplist_iterate(struct.proplist, c.byref(state))
-				if not k: break
-				self.proplist[k] = c.pa_proplist_gets(struct.proplist, k)
 		field_data, fields = dict(), getattr(self, 'c_struct_fields', list())
 		if isinstance(fields, bytes): fields = self.c_struct_fields = fields.split()
 		if field_data_list: field_data.update(zip(fields, field_data_list))
@@ -32,6 +26,19 @@ class PulseObject(object):
 		assert not set(field_data.keys()).difference(fields)
 		self._copy_struct_fields(field_data, fields=field_data.keys())
 		self._copy_struct_fields(struct, fields=set(fields).difference(field_data.keys()))
+
+		if struct and hasattr(struct, 'proplist'):
+			self.proplist, state = dict(), c.c_void_p()
+			while True:
+				k = c.pa_proplist_iterate(struct.proplist, c.byref(state))
+				if not k: break
+				self.proplist[k] = c.pa_proplist_gets(struct.proplist, k)
+		if hasattr(self, 'channel_map'):
+			s = c.create_string_buffer('\0' * 512)
+			c.pa_channel_map_snprint(s, len(s), self.channel_map)
+			s = s.value.strip().split(',')
+			self.channel_map_list = s\
+				if len(s) == self.channel_map.channels else None
 
 	def _copy_struct_fields(self, struct, fields=None):
 		if not fields: fields = self.c_struct_fields

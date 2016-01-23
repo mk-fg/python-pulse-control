@@ -699,6 +699,10 @@ pa_proplist_gets = p.pa_proplist_gets
 pa_proplist_gets.restype = c_char_p
 pa_proplist_gets.argtypes = [POINTER(PA_PROPLIST), c_char_p]
 
+pa_channel_map_snprint = p.pa_channel_map_snprint
+pa_channel_map_snprint.restype = c_char_p
+pa_channel_map_snprint.argtypes = [c_char_p, c_int, POINTER(PA_CHANNEL_MAP)]
+
 
 def pa_return_value(): return pointer(c_int())
 
