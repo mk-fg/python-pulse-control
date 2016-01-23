@@ -312,7 +312,8 @@ class Pulse(object):
 		_wrapper.func = None
 		def _add_wrap_doc(func):
 			func.func_name = '...'
-			func.func_doc = 'Signature: func()'
+			func.func_doc = 'Signature: func({})'.format(
+				'' if len(pulse_func.argtypes) <= 3 else 'index' )
 			return func
 		def _decorator_or_method(func_or_self=None, index=None):
 			if func_or_self.__class__.__name__ == 'Pulse':
@@ -456,10 +457,9 @@ class Pulse(object):
 		assert self.event_callback
 		self._pulse_poll(timeout)
 
-	def event_listen_stop(self, raise_if_not_running=False):
-		'Stop event_listen() loop from e.g. another thread. No-op if loop is not running.'
-		if not self._loop_running:
-			if raise_if_not_running: raise PulseError('Pulse eventloop does not seem to be running')
-			return
+	def event_listen_stop(self):
+		'''Stop event_listen() loop from e.g. another thread.
+			Does nothing if libpulse poll is not running yet, so might be racey with
+				event_listen() - be sure to call it in a loop until event_listen returns or something.'''
 		self._loop_stop = True
 		c.pa_mainloop_wakeup(self._loop)
