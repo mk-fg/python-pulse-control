@@ -27,18 +27,19 @@ class PulseObject(object):
 		self._copy_struct_fields(field_data, fields=field_data.keys())
 		self._copy_struct_fields(struct, fields=set(fields).difference(field_data.keys()))
 
-		if struct and hasattr(struct, 'proplist'):
-			self.proplist, state = dict(), c.c_void_p()
-			while True:
-				k = c.pa_proplist_iterate(struct.proplist, c.byref(state))
-				if not k: break
-				self.proplist[k] = c.pa_proplist_gets(struct.proplist, k)
-		if hasattr(self, 'channel_map'):
-			s = c.create_string_buffer('\0' * 512)
-			c.pa_channel_map_snprint(s, len(s), self.channel_map)
-			s = s.value.strip().split(',')
-			self.channel_map_list = s\
-				if len(s) == self.channel_map.channels else None
+		if struct:
+			if hasattr(struct, 'proplist'):
+				self.proplist, state = dict(), c.c_void_p()
+				while True:
+					k = c.pa_proplist_iterate(struct.proplist, c.byref(state))
+					if not k: break
+					self.proplist[k] = c.pa_proplist_gets(struct.proplist, k)
+			if hasattr(struct, 'channel_map'):
+				s = c.create_string_buffer('\0' * 512)
+				c.pa_channel_map_snprint(s, len(s), struct.channel_map)
+				s = s.value.strip().split(',')
+				self.channel_count = struct.channel_map.channels
+				self.channel_list = s if len(s) == self.channel_count else None
 
 	def _copy_struct_fields(self, struct, fields=None):
 		if not fields: fields = self.c_struct_fields
@@ -75,7 +76,7 @@ class PulseSink(PulseObject):
 
 class PulseSinkInfo(PulseObject):
 	c_struct_fields = ( 'index name mute volume'
-		' description sample_spec channel_map owner_module latency driver monitor_source'
+		' description sample_spec owner_module latency driver monitor_source'
 		' monitor_source_name flags configured_latency n_ports ports active_port' )
 
 	def __init__(self, pa_sink_info):
@@ -93,7 +94,7 @@ class PulseSinkInfo(PulseObject):
 
 class PulseSinkInputInfo(PulseObject):
 	c_struct_fields = ( 'index name mute volume client'
-		' owner_module sink channel_map sample_spec'
+		' owner_module sink sample_spec'
 		' buffer_usec sink_usec resample_method driver' )
 
 	def __init__(self, pa_sink_input_info):
@@ -109,7 +110,7 @@ class PulseSource(PulseObject):
 
 class PulseSourceInfo(PulseObject):
 	c_struct_fields = ( 'index name mute volume'
-		' description sample_spec channel_map owner_module latency driver monitor_of_sink'
+		' description sample_spec owner_module latency driver monitor_of_sink'
 		' monitor_of_sink_name flags configured_latency n_ports ports active_port' )
 
 	def __init__(self, pa_source_info):
@@ -127,7 +128,7 @@ class PulseSourceInfo(PulseObject):
 
 class PulseSourceOutputInfo(PulseObject):
 	c_struct_fields = ( 'index name mute volume client'
-		' owner_module source channel_map sample_spec'
+		' owner_module source sample_spec'
 		' buffer_usec source_usec resample_method driver' )
 
 	def __init__(self, pa_source_output_info):
