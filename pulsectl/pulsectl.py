@@ -69,7 +69,7 @@ class PulseSink(PulseObject):
 class PulseSinkInfo(PulseObject):
 	c_struct_fields = ( 'index name mute volume'
 		' description sample_spec channel_map owner_module latency driver monitor_source'
-		' monitor_source_name flags proplist configured_latency n_ports ports active_port' )
+		' monitor_source_name flags configured_latency n_ports ports active_port' )
 
 	def __init__(self, pa_sink_info):
 		super(PulseSinkInfo, self).__init__(
@@ -103,7 +103,7 @@ class PulseSource(PulseObject):
 class PulseSourceInfo(PulseObject):
 	c_struct_fields = ( 'index name mute volume'
 		' description sample_spec channel_map owner_module latency driver monitor_of_sink'
-		' monitor_of_sink_name flags proplist configured_latency n_ports ports active_port' )
+		' monitor_of_sink_name flags configured_latency n_ports ports active_port' )
 
 	def __init__(self, pa_source_info):
 		super(PulseSourceInfo, self).__init__(
