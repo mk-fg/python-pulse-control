@@ -250,11 +250,13 @@ class Pulse(object):
 	@contextmanager
 	def _pulse_loop(self):
 		if self._loop_running:
-			raise PulseError( 'Running blocking pulse operations'
-					' from pulse callbacks is not supported by this python module.'
-				' This would require threads or proper asyncio/twisted-like async code.'
-				' Workaround can be to raise PulseLoopStop in callback, doing whatever'
-					' event-handling pulse calls synchronously and then resuming event_listen() loop.' )
+			raise PulseError(
+				'Running blocking pulse operations from pulse eventloop callbacks'
+					' or other threads while loop is running is not supported by this python module.'
+				' Supporting this would require threads or proper asyncio/twisted-like async code.'
+				' Workaround can be to stop the loop'
+					' (raise PulseLoopStop in callback or event_loop_stop() from another thread),'
+					' doing whatever pulse calls synchronously and then resuming event_listen() loop.' )
 		self._loop_running, self._loop_stop = True, False
 		try: yield self._loop
 		finally:
