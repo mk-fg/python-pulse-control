@@ -13,7 +13,7 @@ except IOError: readme = ''
 setup(
 
 	name = 'pulsectl',
-	version = '16.1.31',
+	version = '16.1.32',
 	author = 'George Filipkin, Mike Kazantsev',
 	author_email = 'mk.fraggod@gmail.com',
 	license = 'MIT',
@@ -24,7 +24,8 @@ setup(
 
 	url = 'http://github.com/mk-fg/python-pulse-control',
 
-	description = 'Python ctypes bindings for pulseaudio (libpulse).',
+	description = 'Python high-level interface'
+		' and ctypes-based bindings for PulseAudio (libpulse)',
 	long_description = readme,
 
 	classifiers = [
