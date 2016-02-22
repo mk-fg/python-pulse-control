@@ -2,23 +2,20 @@
 
 # C Bindings
 
-import os, errno, functools as ft
+import os, sys, functools as ft
 from ctypes import *
 
 
-class ResCheckError(Exception): pass
+if sys.version_info.major >= 3:
+	def force_str(s): return s.decode('utf-8') if isinstance(s, bytes) else s
+	def force_bytes(s): return s.encode('utf-8') if isinstance(s, str) else s
+	class c_str_p_type(object):
+		c_type = c_char_p
+		def __call__(self, val): return force_str(val)
+		def from_param(self, val): return force_bytes(val)
+	c_str_p = c_str_p_type()
+else: c_str_p = c_char_p
 
-def _check(res, gt0=False, not_null=False):
-	if res < 0 or (gt0 and res == 0) or (not_null and res):
-		errno_ = get_errno()
-		raise ResCheckError(os.strerror(errno_), res, errno_)
-	return res
-
-def check(**check_kws):
-	return ft.partial(_check, **check_kws)
-
-
-p = CDLL('libpulse.so.0')
 
 PA_VOLUME_NORM = 65536
 PA_CHANNELS_MAX = 32
@@ -294,417 +291,174 @@ PA_SUBSCRIBE_CB_T = CFUNCTYPE(c_void_p,
 	c_void_p)
 
 
-pa_strerror = p.pa_strerror
-pa_strerror.restype = c_char_p
-pa_strerror.argtypes = [c_int]
+class LibPulse(object):
 
-pa_mainloop_new = p.pa_mainloop_new
-pa_mainloop_new.restype = POINTER(PA_MAINLOOP)
-pa_mainloop_new.argtypes = []
+	func_defs = dict(
+		pa_strerror=([c_int], c_str_p),
+		pa_mainloop_new=(POINTER(PA_MAINLOOP)),
+		pa_mainloop_get_api=([POINTER(PA_MAINLOOP)], POINTER(PA_MAINLOOP_API)),
+		pa_mainloop_run=([POINTER(PA_MAINLOOP), POINTER(c_int)], c_int),
+		pa_mainloop_prepare=([POINTER(PA_MAINLOOP), c_int], 'int_check_zero'),
+		pa_mainloop_poll=([POINTER(PA_MAINLOOP)], 'int_check_zero'),
+		pa_mainloop_dispatch=([POINTER(PA_MAINLOOP)], 'int_check_zero'),
+		pa_mainloop_iterate=([POINTER(PA_MAINLOOP), c_int, POINTER(c_int)], 'int_check_zero'),
+		pa_mainloop_wakeup=[POINTER(PA_MAINLOOP)],
+		pa_mainloop_quit=([POINTER(PA_MAINLOOP), c_int]),
+		pa_mainloop_free=[POINTER(PA_MAINLOOP)],
+		pa_signal_init=([POINTER(PA_MAINLOOP_API)], 'int_check_zero'),
+		pa_signal_new=([c_int, PA_SIGNAL_CB_T, POINTER(c_int)]),
+		pa_signal_done=None,
+		pa_context_errno=([POINTER(PA_CONTEXT)], c_int),
+		pa_context_new=([POINTER(PA_MAINLOOP_API), c_str_p], POINTER(PA_CONTEXT)),
+		pa_context_set_state_callback=([POINTER(PA_CONTEXT), PA_STATE_CB_T, c_void_p]),
+		pa_context_connect=([POINTER(PA_CONTEXT), c_str_p, c_int, POINTER(c_int)], c_int),
+		pa_context_get_state=([POINTER(PA_CONTEXT)], c_int),
+		pa_context_disconnect=[POINTER(PA_CONTEXT)],
+		pa_context_drain=(
+			[POINTER(PA_CONTEXT), PA_CONTEXT_DRAIN_CB_T, c_void_p],
+			POINTER(PA_OPERATION) ),
+		pa_context_get_sink_input_info_list=(
+			[POINTER(PA_CONTEXT), PA_SINK_INPUT_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_sink_input_info=(
+			[POINTER(PA_CONTEXT), c_uint32, PA_SINK_INPUT_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_sink_info_list=(
+			[POINTER(PA_CONTEXT), PA_SINK_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_sink_info_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, PA_SINK_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_sink_mute_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_suspend_sink_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_sink_port_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_sink_input_mute=(
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_sink_volume_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_sink_input_volume=(
+			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_move_sink_input_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_source_output_info=(
+			[POINTER(PA_CONTEXT), c_uint32, PA_SOURCE_OUTPUT_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_source_output_info_list=(
+			[POINTER(PA_CONTEXT), PA_SOURCE_OUTPUT_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_move_source_output_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_source_output_volume=(
+			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_source_output_mute=(
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_kill_source_output=(
+			[POINTER(PA_CONTEXT), c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_source_info_list=(
+			[POINTER(PA_CONTEXT), PA_SOURCE_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_source_info_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, PA_SOURCE_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_source_volume_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_source_mute_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_suspend_source_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_set_source_port_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_client_info_list=(
+			[POINTER(PA_CONTEXT), PA_CLIENT_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_context_get_client_info=(
+			[POINTER(PA_CONTEXT), c_uint32, PA_CLIENT_INFO_CB_T, c_void_p],
+			POINTER(c_int) ),
+		pa_operation_unref=([POINTER(PA_OPERATION)], c_int),
+		pa_context_get_card_info_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, PA_CARD_INFO_CB_T, c_void_p],
+			POINTER(PA_OPERATION) ),
+		pa_context_get_card_info_list=(
+			[POINTER(PA_CONTEXT), PA_CARD_INFO_CB_T, c_void_p],
+			POINTER(PA_OPERATION) ),
+		pa_context_set_card_profile_by_index=(
+			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(PA_OPERATION) ),
+		pa_context_subscribe=(
+			[POINTER(PA_CONTEXT), c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
+			POINTER(PA_OPERATION) ),
+		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
+		pa_proplist_iterate=([POINTER(PA_PROPLIST), POINTER(c_void_p)], c_str_p),
+		pa_proplist_gets=([POINTER(PA_PROPLIST), c_str_p], c_str_p),
+		pa_channel_map_snprint=([c_str_p, c_int, POINTER(PA_CHANNEL_MAP)], c_str_p) )
 
-pa_mainloop_get_api = p.pa_mainloop_get_api
-pa_mainloop_get_api.restype = POINTER(PA_MAINLOOP_API)
-pa_mainloop_get_api.argtypes = [POINTER(PA_MAINLOOP)]
-
-pa_mainloop_run = p.pa_mainloop_run
-pa_mainloop_run.restype = c_int
-pa_mainloop_run.argtypes = [POINTER(PA_MAINLOOP), POINTER(c_int)]
-
-pa_mainloop_prepare = p.pa_mainloop_prepare
-pa_mainloop_prepare.restype = check()
-pa_mainloop_prepare.argtypes = [POINTER(PA_MAINLOOP), c_int]
-
-pa_mainloop_poll = p.pa_mainloop_poll
-pa_mainloop_poll.restype = check()
-pa_mainloop_poll.argtypes = [POINTER(PA_MAINLOOP)]
-
-pa_mainloop_dispatch = p.pa_mainloop_dispatch
-pa_mainloop_dispatch.restype = check()
-pa_mainloop_dispatch.argtypes = [POINTER(PA_MAINLOOP)]
-
-pa_mainloop_iterate = p.pa_mainloop_iterate
-pa_mainloop_iterate.restype = check()
-pa_mainloop_iterate.argtypes = [POINTER(PA_MAINLOOP), c_int, POINTER(c_int)]
-
-pa_mainloop_wakeup = p.pa_mainloop_wakeup
-pa_mainloop_wakeup.restype = None
-pa_mainloop_wakeup.argtypes = [POINTER(PA_MAINLOOP)]
-
-pa_mainloop_quit = p.pa_mainloop_quit
-pa_mainloop_quit.restype = None
-pa_mainloop_quit.argtypes = [POINTER(PA_MAINLOOP), c_int]
-
-pa_mainloop_free = p.pa_mainloop_free
-pa_mainloop_free.restype = None
-pa_mainloop_free.argtypes = [POINTER(PA_MAINLOOP)]
-
-pa_signal_init = p.pa_signal_init
-pa_signal_init.restype = check()
-pa_signal_init.argtypes = [POINTER(PA_MAINLOOP_API)]
-
-pa_signal_new = p.pa_signal_new
-pa_signal_new.restype = None
-pa_signal_new.argtypes = [c_int, PA_SIGNAL_CB_T, POINTER(c_int)]
-
-pa_signal_done = p.pa_signal_done
-pa_signal_done.restype = None
-pa_signal_done.argtypes = []
-
-pa_context_errno = p.pa_context_errno
-pa_context_errno.restype = c_int
-pa_context_errno.argtypes = [POINTER(PA_CONTEXT)]
-
-pa_context_new = p.pa_context_new
-pa_context_new.restype = POINTER(PA_CONTEXT)
-pa_context_new.argtypes = [POINTER(PA_MAINLOOP_API), c_char_p]
-
-pa_context_set_state_callback = p.pa_context_set_state_callback
-pa_context_set_state_callback.restype = None
-pa_context_set_state_callback.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_STATE_CB_T,
-	c_void_p
-]
-
-pa_context_connect = p.pa_context_connect
-pa_context_connect.restype = c_int
-pa_context_connect.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_char_p,
-	c_int,
-	POINTER(c_int)
-]
-
-pa_context_get_state = p.pa_context_get_state
-pa_context_get_state.restype = c_int
-pa_context_get_state.argtypes = [POINTER(PA_CONTEXT)]
-
-pa_context_drain = p.pa_context_drain
-pa_context_drain.restype = POINTER(PA_OPERATION)
-pa_context_drain.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_CONTEXT_DRAIN_CB_T,
-	c_void_p
-]
-
-pa_context_disconnect = p.pa_context_disconnect
-pa_context_disconnect.restype = None
-pa_context_disconnect.argtypes = [POINTER(PA_CONTEXT)]
-
-pa_context_get_sink_input_info_list = p.pa_context_get_sink_input_info_list
-pa_context_get_sink_input_info_list.restype = POINTER(c_int)
-pa_context_get_sink_input_info_list.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_SINK_INPUT_INFO_CB_T,
-	c_void_p
-]
-pa_context_get_sink_input_info = p.pa_context_get_sink_input_info
-pa_context_get_sink_input_info.restype = POINTER(c_int)
-pa_context_get_sink_input_info.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	PA_SINK_INPUT_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_get_sink_info_list = p.pa_context_get_sink_info_list
-pa_context_get_sink_info_list.restype = POINTER(c_int)
-pa_context_get_sink_info_list.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_SINK_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_get_sink_info_by_index = p.pa_context_get_sink_info_by_index
-pa_context_get_sink_info_by_index.restype = POINTER(c_int)
-pa_context_get_sink_info_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	PA_SINK_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_set_sink_mute_by_index = p.pa_context_set_sink_mute_by_index
-pa_context_set_sink_mute_by_index.restype = POINTER(c_int)
-pa_context_set_sink_mute_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_int,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_suspend_sink_by_index = p.pa_context_suspend_sink_by_index
-pa_context_suspend_sink_by_index.restype = POINTER(c_int)
-pa_context_suspend_sink_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_int,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_sink_port_by_index = p.pa_context_set_sink_port_by_index
-pa_context_set_sink_port_by_index.restype = POINTER(c_int)
-pa_context_set_sink_port_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_char_p,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_sink_input_mute = p.pa_context_set_sink_input_mute
-pa_context_set_sink_input_mute.restype = POINTER(c_int)
-pa_context_set_sink_input_mute.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_int,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_sink_volume_by_index = p.pa_context_set_sink_volume_by_index
-pa_context_set_sink_volume_by_index.restype = POINTER(c_int)
-pa_context_set_sink_volume_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	POINTER(PA_CVOLUME),
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_sink_input_volume = p.pa_context_set_sink_input_volume
-pa_context_set_sink_input_volume.restype = POINTER(c_int)
-pa_context_set_sink_input_volume.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	POINTER(PA_CVOLUME),
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_move_sink_input_by_index = p.pa_context_move_sink_input_by_index
-pa_context_move_sink_input_by_index.restype = POINTER(c_int)
-pa_context_move_sink_input_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_uint32,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_get_source_output_info = p.pa_context_get_source_output_info
-pa_context_get_source_output_info.restype = POINTER(c_int)
-pa_context_get_source_output_info.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	PA_SOURCE_OUTPUT_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_get_source_output_info_list = p.pa_context_get_source_output_info_list
-pa_context_get_source_output_info_list.restype = POINTER(c_int)
-pa_context_get_source_output_info_list.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_SOURCE_OUTPUT_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_get_source_output_info = p.pa_context_get_source_output_info
-pa_context_get_source_output_info.restype = POINTER(c_int)
-pa_context_get_source_output_info.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	PA_SOURCE_OUTPUT_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_move_source_output_by_index = p.pa_context_move_source_output_by_index
-pa_context_move_source_output_by_index.restype = POINTER(c_int)
-pa_context_move_source_output_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_uint32,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_source_output_volume = p.pa_context_set_source_output_volume
-pa_context_set_source_output_volume.restype = POINTER(c_int)
-pa_context_set_source_output_volume.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	POINTER(PA_CVOLUME),
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_source_output_mute = p.pa_context_set_source_output_mute
-pa_context_set_source_output_mute.restype = POINTER(c_int)
-pa_context_set_source_output_mute.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_int,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_kill_source_output = p.pa_context_kill_source_output
-pa_context_kill_source_output.restype = POINTER(c_int)
-pa_context_kill_source_output.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_get_source_info_list = p.pa_context_get_source_info_list
-pa_context_get_source_info_list.restype = POINTER(c_int)
-pa_context_get_source_info_list.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_SOURCE_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_get_source_info_by_index = p.pa_context_get_source_info_by_index
-pa_context_get_source_info_by_index.restype = POINTER(c_int)
-pa_context_get_source_info_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	PA_SOURCE_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_set_source_volume_by_index = p.pa_context_set_source_volume_by_index
-pa_context_set_source_volume_by_index.restype = POINTER(c_int)
-pa_context_set_source_volume_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	POINTER(PA_CVOLUME),
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_source_volume_by_index = p.pa_context_set_source_volume_by_index
-pa_context_set_source_volume_by_index.restype = POINTER(c_int)
-pa_context_set_source_volume_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	POINTER(PA_CVOLUME),
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_source_mute_by_index = p.pa_context_set_source_mute_by_index
-pa_context_set_source_mute_by_index.restype = POINTER(c_int)
-pa_context_set_source_mute_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_int,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_suspend_source_by_index = p.pa_context_suspend_source_by_index
-pa_context_suspend_source_by_index.restype = POINTER(c_int)
-pa_context_suspend_source_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_int,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_source_port_by_index = p.pa_context_set_source_port_by_index
-pa_context_set_source_port_by_index.restype = POINTER(c_int)
-pa_context_set_source_port_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_char_p,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_get_client_info_list = p.pa_context_get_client_info_list
-pa_context_get_client_info_list.restype = POINTER(c_int)
-pa_context_get_client_info_list.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_CLIENT_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_get_client_info = p.pa_context_get_client_info
-pa_context_get_client_info.restype = POINTER(c_int)
-pa_context_get_client_info.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	PA_CLIENT_INFO_CB_T,
-	c_void_p
-]
-
-pa_operation_unref = p.pa_operation_unref
-pa_operation_unref.restype = c_int
-pa_operation_unref.argtypes = [POINTER(PA_OPERATION)]
-
-pa_context_get_card_info_by_index = p.pa_context_get_card_info_by_index
-pa_context_get_card_info_by_index.restype = POINTER(PA_OPERATION)
-pa_context_get_card_info_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	PA_CARD_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_get_card_info_list = p.pa_context_get_card_info_list
-pa_context_get_card_info_list.restype = POINTER(PA_OPERATION)
-pa_context_get_card_info_list.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_CARD_INFO_CB_T,
-	c_void_p
-]
-
-pa_context_set_card_profile_by_index = p.pa_context_set_card_profile_by_index
-pa_context_set_card_profile_by_index.restype = POINTER(PA_OPERATION)
-pa_context_set_card_profile_by_index.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_uint32,
-	c_char_p,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_subscribe = p.pa_context_subscribe
-pa_context_subscribe.restype = POINTER(PA_OPERATION)
-pa_context_subscribe.argtypes = [
-	POINTER(PA_CONTEXT),
-	c_int,
-	PA_CONTEXT_SUCCESS_CB_T,
-	c_void_p
-]
-
-pa_context_set_subscribe_callback = p.pa_context_set_subscribe_callback
-pa_context_set_subscribe_callback.restype = None
-pa_context_set_subscribe_callback.argtypes = [
-	POINTER(PA_CONTEXT),
-	PA_SUBSCRIBE_CB_T,
-	c_void_p
-]
-
-pa_proplist_iterate = p.pa_proplist_iterate
-pa_proplist_iterate.restype = c_char_p
-pa_proplist_iterate.argtypes = [POINTER(PA_PROPLIST), POINTER(c_void_p)]
-
-pa_proplist_gets = p.pa_proplist_gets
-pa_proplist_gets.restype = c_char_p
-pa_proplist_gets.argtypes = [POINTER(PA_PROPLIST), c_char_p]
-
-pa_channel_map_snprint = p.pa_channel_map_snprint
-pa_channel_map_snprint.restype = c_char_p
-pa_channel_map_snprint.argtypes = [c_char_p, c_int, POINTER(PA_CHANNEL_MAP)]
+	class CallError(Exception): pass
 
 
-def pa_return_value(): return pointer(c_int())
+	def __init__(self):
+		p = CDLL('libpulse.so.0')
+
+		self.funcs = dict()
+		for k, spec in self.func_defs.items():
+			func, args, res_proc = getattr(p, k), None, None
+			if spec:
+				if not isinstance(spec, tuple): spec = (spec,)
+				for v in spec:
+					assert v, [k, spec, v]
+					if isinstance(v, (tuple, list)): args = v
+					else: res_proc = v
+			func_k = k if not k.startswith('pa_') else k[3:]
+			self.funcs[func_k] = self._func_wrapper(k, func, args, res_proc)
+
+	def _func_wrapper(self, func_name, func, args=list(), res_proc=None):
+		func.restype, func.argtypes = None, args
+		if hasattr(res_proc, 'c_type'): func.restype = res_proc.c_type
+		elif isinstance(res_proc, str):
+			if res_proc.startswith('int_check_'): func.restype = c_int
+		else: func.restype, res_proc = res_proc, None
+
+		def _wrapper(*args):
+			res = func(*args)
+			if isinstance(res_proc, str):
+				if res_proc == 'int_check_zero':
+					if res < 0:
+						err = list()
+						if args and isinstance(args[0], PA_CONTEXT):
+							errno_ = self.context_errno(args[0])
+							err.append(self.strerror(errno_))
+						raise self.CallError(*err)
+				else: raise ValueError(res_proc)
+			elif res_proc: res = res_proc(res)
+			return res
+
+		_wrapper.__name__ = 'libpulse.{}'.format(func_name)
+		return _wrapper
+
+	def __getattr__(self, k): return self.funcs[k]
+
+	def return_value(self): return pointer(c_int())
+
+pa = LibPulse()
+
+
 
 def mono_time():
 	if not hasattr(mono_time, 'ts'):

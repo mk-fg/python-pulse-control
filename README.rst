@@ -1,7 +1,8 @@
 python-pulse-control (pulsectl module)
 ======================================
 
-Python 2.X high-level interface and ctypes-based bindings for PulseAudio_ (libpulse).
+Python (3.x and 2.x) high-level interface and ctypes-based bindings for
+PulseAudio_ (libpulse).
 
 Forked from pulsemixer_ (which had this code bundled) to re-use this awesome
 stuff in other projects.
@@ -86,7 +87,7 @@ Module is relatively new and these high-level interfaces might change in the fut
 Installation
 ------------
 
-It's a regular package for Python 2.7 (not 3.X).
+It's a regular package for Python (3.x or 2.x).
 
 Using pip_ is the best way::
 

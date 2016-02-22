@@ -13,7 +13,7 @@ except IOError: readme = ''
 setup(
 
 	name = 'pulsectl',
-	version = '16.1.32',
+	version = '16.2.0',
 	author = 'George Filipkin, Mike Kazantsev',
 	author_email = 'mk.fraggod@gmail.com',
 	license = 'MIT',
@@ -35,8 +35,10 @@ setup(
 		'Operating System :: POSIX',
 		'Operating System :: POSIX :: Linux',
 		'Programming Language :: Python',
+		'Programming Language :: Python :: 2',
 		'Programming Language :: Python :: 2.7',
-		'Programming Language :: Python :: 2 :: Only',
+		'Programming Language :: Python :: 3',
+		'Programming Language :: Python :: 3.5',
 		'Topic :: Multimedia',
 		'Topic :: Multimedia :: Sound/Audio' ],
 

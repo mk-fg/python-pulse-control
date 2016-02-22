@@ -4,9 +4,14 @@ from __future__ import print_function
 import itertools as it, operator as op, functools as ft
 from collections import defaultdict
 from contextlib import contextmanager
-import inspect
+import sys, inspect
 
 from . import _pulsectl as c
+
+
+if sys.version_info.major >= 3: decodable = bytes
+else: range, map, decodable = xrange, it.imap, type('nx', (object,), dict())
+def str_decode(s): return s if not isinstance(s, decodable) else s.decode()
 
 
 class PulseError(Exception): pass
@@ -19,7 +24,7 @@ class PulseObject(object):
 
 	def __init__(self, struct=None, *field_data_list, **field_data_dict):
 		field_data, fields = dict(), getattr(self, 'c_struct_fields', list())
-		if isinstance(fields, bytes): fields = self.c_struct_fields = fields.split()
+		if isinstance(fields, str): fields = self.c_struct_fields = fields.split()
 		if field_data_list: field_data.update(zip(fields, field_data_list))
 		if field_data_dict: field_data.update(field_data_dict)
 		if struct is None: field_data, struct = dict(), field_data
@@ -31,35 +36,36 @@ class PulseObject(object):
 			if hasattr(struct, 'proplist'):
 				self.proplist, state = dict(), c.c_void_p()
 				while True:
-					k = c.pa_proplist_iterate(struct.proplist, c.byref(state))
+					k = c.pa.proplist_iterate(struct.proplist, c.byref(state))
 					if not k: break
-					self.proplist[k] = c.pa_proplist_gets(struct.proplist, k)
+					self.proplist[k] = c.pa.proplist_gets(struct.proplist, k)
 			if hasattr(struct, 'channel_map'):
-				s = c.create_string_buffer('\0' * 512)
-				c.pa_channel_map_snprint(s, len(s), struct.channel_map)
-				s = s.value.strip().split(',')
+				s = c.create_string_buffer(b'\0' * 512)
+				c.pa.channel_map_snprint(s, len(s), struct.channel_map)
+				s = str_decode(s.value.strip().split(b','))
 				self.channel_count = struct.channel_map.channels
 				self.channel_list = s if len(s) == self.channel_count else None
 
 	def _copy_struct_fields(self, struct, fields=None):
 		if not fields: fields = self.c_struct_fields
 		for k in fields:
-			setattr(self, k, getattr(struct, k) if not isinstance(struct, dict) else struct[k])
+			setattr(self, k, str_decode(
+				getattr(struct, k) if not isinstance(struct, dict) else struct[k] ))
 
 	def _as_str(self, ext=None, fields=None, **kws):
-		kws = list(it.starmap('{}={!r}'.format, kws.viewitems()))
+		kws = list(it.starmap('{}={!r}'.format, kws.items()))
 		if fields:
-			if isinstance(fields, bytes): fields = fields.split()
+			if isinstance(fields, str): fields = fields.split()
 			kws.extend('{}={!r}'.format(k, getattr(self, k)) for k in fields)
 		kws = sorted(kws)
-		if ext: kws.append(bytes(ext))
+		if ext: kws.append(str(ext))
 		return ', '.join(kws)
 
 	def __str__(self):
 		return self._as_str(fields=self.c_struct_fields)
 
 	def __repr__(self):
-		return '<{} at {:x} - {}>'.format(self.__class__.__name__, id(self), bytes(self))
+		return '<{} at {:x} - {}>'.format(self.__class__.__name__, id(self), str(self))
 
 
 class PulsePort(PulseObject):
@@ -85,7 +91,7 @@ class PulseSinkInfo(PulseObject):
 			volume=PulseVolumeC(pa_sink_info.volume),
 			ports=list(
 				PulsePort(pa_sink_info.ports[n].contents)
-				for n in xrange(pa_sink_info.n_ports) ),
+				for n in range(pa_sink_info.n_ports) ),
 			active_port=PulsePort(pa_sink_info.active_port.contents)
 				if pa_sink_info.n_ports else None )
 
@@ -119,7 +125,7 @@ class PulseSourceInfo(PulseObject):
 			volume=PulseVolumeC(pa_source_info.volume),
 			ports=list(
 				PulsePort(pa_source_info.ports[n].contents)
-				for n in xrange(pa_source_info.n_ports) ),
+				for n in range(pa_source_info.n_ports) ),
 			active_port=PulsePort(pa_source_info.active_port.contents)
 				if pa_source_info.n_ports else None )
 
@@ -179,26 +185,26 @@ class Pulse(object):
 		self.server, self.connected = server, None
 		self._ret = self._ctx = self._loop = self._api = None
 		self._actions, self._action_ids = dict(),\
-			it.chain.from_iterable(it.imap(xrange, it.repeat(2**30)))
+			it.chain.from_iterable(map(range, it.repeat(2**30)))
 		self.init()
 
 	def init(self):
 		self._pa_state_cb = c.PA_STATE_CB_T(self._pulse_state_cb)
 		self._pa_subscribe_cb = c.PA_SUBSCRIBE_CB_T(self._pulse_subscribe_cb)
 
-		self._loop = c.pa_mainloop_new()
+		self._loop = c.pa.mainloop_new()
 		self._loop_running = self._loop_close = False
-		self._api = c.pa_mainloop_get_api(self._loop)
+		self._api = c.pa.mainloop_get_api(self._loop)
 
-		self._ctx, self._ret = c.pa_context_new(self._api, self.name), c.pa_return_value()
-		c.pa_context_set_state_callback(self._ctx, self._pa_state_cb, None)
+		self._ctx, self._ret = c.pa.context_new(self._api, self.name), c.pa.return_value()
+		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
 
-		c.pa_context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
+		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
 		self._pa_subscribe_ev_t = dict(
 			(getattr(c, 'PA_SUBSCRIPTION_EVENT_{}'.format(k.upper())), k)
 			for k in 'new change remove'.split() )
 		self._pa_subscribe_ev_fac, self._pa_subscribe_masks = dict(), dict()
-		for k, n in vars(c).viewitems():
+		for k, n in vars(c).items():
 			if k.startswith('PA_SUBSCRIPTION_EVENT_'):
 				if k.endswith('_MASK'): continue
 				k = k[22:].lower()
@@ -206,12 +212,12 @@ class Pulse(object):
 				assert n & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK == n, [k, n]
 				self._pa_subscribe_ev_fac[n] = k
 			elif k.startswith('PA_SUBSCRIPTION_MASK_'): self._pa_subscribe_masks[k[21:].lower()] = n
-		self.event_types = sorted(self._pa_subscribe_ev_t.viewvalues())
-		self.event_facilities = sorted(self._pa_subscribe_ev_fac.viewvalues())
+		self.event_types = sorted(self._pa_subscribe_ev_t.values())
+		self.event_facilities = sorted(self._pa_subscribe_ev_fac.values())
 		self.event_masks = sorted(self._pa_subscribe_masks.keys())
 		self.event_callback = None
 
-		if c.pa_context_connect(self._ctx, self.server, 0, None) < 0:
+		if c.pa.context_connect(self._ctx, self.server, 0, None) < 0:
 			self.close()
 			raise PulseError('pa_context_connect failed')
 		while self.connected is None: self._pulse_iterate()
@@ -219,12 +225,12 @@ class Pulse(object):
 	def close(self):
 		if self._loop:
 			if self._loop_running:
-				c.pa_mainloop_quit(self._loop, 0)
+				c.pa.mainloop_quit(self._loop, 0)
 				self._loop_close = True
 				return
 			try:
-				if self._ctx: c.pa_context_disconnect(self._ctx)
-				c.pa_mainloop_free(self._loop)
+				if self._ctx: c.pa.context_disconnect(self._ctx)
+				c.pa.mainloop_free(self._loop)
 			finally: self._ctx = self._loop = None
 
 	def __enter__(self): return self
@@ -232,7 +238,7 @@ class Pulse(object):
 
 
 	def _pulse_state_cb(self, ctx, userdata):
-		state = c.pa_context_get_state(ctx)
+		state = c.pa.context_get_state(ctx)
 		if state >= c.PA_CONTEXT_READY:
 			if state == c.PA_CONTEXT_READY: self.connected = True
 			elif state == c.PA_CONTEXT_FAILED: self.connected = False
@@ -264,10 +270,10 @@ class Pulse(object):
 			if self._loop_close: self.close()
 
 	def _pulse_run(self):
-		with self._pulse_loop() as loop: c.pa_mainloop_run(loop, self._ret)
+		with self._pulse_loop() as loop: c.pa.mainloop_run(loop, self._ret)
 
 	def _pulse_iterate(self, block=True):
-		with self._pulse_loop() as loop: c.pa_mainloop_iterate(loop, int(block), self._ret)
+		with self._pulse_loop() as loop: c.pa.mainloop_iterate(loop, int(block), self._ret)
 
 	@contextmanager
 	def _pulse_op_cb(self, raw=False):
@@ -290,10 +296,10 @@ class Pulse(object):
 			while True:
 				delay = max(0, int((ts_deadline - ts) * 1000000)) if ts_deadline else -1
 				try:
-					c.pa_mainloop_prepare(loop, delay) # usec
-					c.pa_mainloop_poll(loop)
-					c.pa_mainloop_dispatch(loop)
-				except c.ResCheckError as err:
+					c.pa.mainloop_prepare(loop, delay) # usec
+					c.pa.mainloop_poll(loop)
+					c.pa.mainloop_dispatch(loop)
+				except c.pa.CallError as err:
 					if err.args[1] == -2: break # indicates stopped loop
 					raise
 				if self._loop_stop: break
@@ -322,8 +328,9 @@ class Pulse(object):
 		_wrapper.func = None
 		def _add_wrap_doc(func):
 			func.func_name = '...'
-			func.func_doc = 'Signature: func({})'.format(
-				'' if len(pulse_func.argtypes) <= 3 else 'index' )
+			# XXX
+			# func.func_doc = 'Signature: func({})'.format(
+			# 	'' if len(pulse_func.argtypes) <= 3 else 'index' )
 			return func
 		def _decorator_or_method(func_or_self=None, index=None):
 			if func_or_self.__class__.__name__ == 'Pulse':
@@ -337,33 +344,33 @@ class Pulse(object):
 
 	sink_input_list = _pulse_get_list(
 		c.PA_SINK_INPUT_INFO_CB_T,
-		c.pa_context_get_sink_input_info_list, PulseSinkInputInfo )
+		c.pa.context_get_sink_input_info_list, PulseSinkInputInfo )
 	sink_input_info = _pulse_get_list(
 		c.PA_SINK_INPUT_INFO_CB_T,
-		c.pa_context_get_sink_input_info, PulseSinkInputInfo )
+		c.pa.context_get_sink_input_info, PulseSinkInputInfo )
 	source_output_list = _pulse_get_list(
 		c.PA_SOURCE_OUTPUT_INFO_CB_T,
-		c.pa_context_get_source_output_info_list, PulseSourceOutputInfo )
+		c.pa.context_get_source_output_info_list, PulseSourceOutputInfo )
 	source_output_info = _pulse_get_list(
 		c.PA_SOURCE_OUTPUT_INFO_CB_T,
-		c.pa_context_get_source_output_info, PulseSourceOutputInfo )
+		c.pa.context_get_source_output_info, PulseSourceOutputInfo )
 
 	sink_list = _pulse_get_list(
-		c.PA_SINK_INFO_CB_T, c.pa_context_get_sink_info_list, PulseSinkInfo )
+		c.PA_SINK_INFO_CB_T, c.pa.context_get_sink_info_list, PulseSinkInfo )
 	sink_info = _pulse_get_list(
-		c.PA_SINK_INFO_CB_T, c.pa_context_get_sink_info_by_index, PulseSinkInfo )
+		c.PA_SINK_INFO_CB_T, c.pa.context_get_sink_info_by_index, PulseSinkInfo )
 	source_list = _pulse_get_list(
-		c.PA_SOURCE_INFO_CB_T, c.pa_context_get_source_info_list, PulseSourceInfo )
+		c.PA_SOURCE_INFO_CB_T, c.pa.context_get_source_info_list, PulseSourceInfo )
 	source_info = _pulse_get_list(
-		c.PA_SOURCE_INFO_CB_T, c.pa_context_get_source_info_by_index, PulseSourceInfo )
+		c.PA_SOURCE_INFO_CB_T, c.pa.context_get_source_info_by_index, PulseSourceInfo )
 	card_list = _pulse_get_list(
-		c.PA_CARD_INFO_CB_T, c.pa_context_get_card_info_list, PulseCard )
+		c.PA_CARD_INFO_CB_T, c.pa.context_get_card_info_list, PulseCard )
 	card_info = _pulse_get_list(
-		c.PA_CARD_INFO_CB_T, c.pa_context_get_card_info_by_index, PulseCard )
+		c.PA_CARD_INFO_CB_T, c.pa.context_get_card_info_by_index, PulseCard )
 	client_list = _pulse_get_list(
-		c.PA_CLIENT_INFO_CB_T, c.pa_context_get_client_info_list, PulseClient )
+		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info_list, PulseClient )
 	client_info = _pulse_get_list(
-		c.PA_CLIENT_INFO_CB_T, c.pa_context_get_client_info, PulseClient )
+		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info, PulseClient )
 
 	def _pulse_method_call(method_or_func, func=None):
 		if func is None: func_method, func = None, method_or_func
@@ -376,40 +383,45 @@ class Pulse(object):
 				method(self._ctx, index, *(list(pulse_call) + [cb, None]))
 		func_args = list(inspect.getargspec(func))
 		func_args[0] = ['index'] + list(func_args[0])
-		_wrapper.func_name = '...'
-		_wrapper.func_doc = 'Signature: func' + inspect.formatargspec(*func_args)
-		if func.func_doc: _wrapper.func_doc += '\n\n' + func.func_doc
+		k_name, k_doc = '__name__', '__doc__' # XXX
+		# k_name, k_doc = ('func_name', 'func_doc')\
+		# 	if not hasattr(func, '__qualname__') else ()
+		setattr(_wrapper, k_name, '...')
+		setattr( _wrapper, k_doc,
+			'Signature: func' + inspect.formatargspec(*func_args) )
+		if getattr(func, k_doc, None):
+			setattr(_wrapper, k_doc, getattr(_wrapper, k_doc) + '\n\n' + func.func_doc)
 		return _wrapper
 
 	sink_input_mute = _pulse_method_call(
-		c.pa_context_set_sink_input_mute, lambda mute=True: mute )
+		c.pa.context_set_sink_input_mute, lambda mute=True: mute )
 	sink_input_move = _pulse_method_call(
-		c.pa_context_move_sink_input_by_index, lambda sink_index: sink_index )
+		c.pa.context_move_sink_input_by_index, lambda sink_index: sink_index )
 	sink_mute = _pulse_method_call(
-		c.pa_context_set_sink_mute_by_index, lambda mute=True: mute )
+		c.pa.context_set_sink_mute_by_index, lambda mute=True: mute )
 	sink_input_volume_set = _pulse_method_call(
-		c.pa_context_set_sink_input_volume, lambda vol: vol.to_c() )
+		c.pa.context_set_sink_input_volume, lambda vol: vol.to_c() )
 	sink_volume_set = _pulse_method_call(
-		c.pa_context_set_sink_volume_by_index, lambda vol: vol.to_c() )
+		c.pa.context_set_sink_volume_by_index, lambda vol: vol.to_c() )
 	sink_suspend = _pulse_method_call(
-		c.pa_context_suspend_sink_by_index, lambda suspend=True: suspend )
+		c.pa.context_suspend_sink_by_index, lambda suspend=True: suspend )
 	sink_port_set = _pulse_method_call(
-		c.pa_context_set_sink_port_by_index, lambda port: port )
+		c.pa.context_set_sink_port_by_index, lambda port: port )
 
 	source_output_mute = _pulse_method_call(
-		c.pa_context_set_source_output_mute, lambda mute=True: mute )
+		c.pa.context_set_source_output_mute, lambda mute=True: mute )
 	source_output_move = _pulse_method_call(
-		c.pa_context_move_source_output_by_index, lambda sink_index: sink_index )
+		c.pa.context_move_source_output_by_index, lambda sink_index: sink_index )
 	source_mute = _pulse_method_call(
-		c.pa_context_set_source_mute_by_index, lambda mute=True: mute )
+		c.pa.context_set_source_mute_by_index, lambda mute=True: mute )
 	source_output_volume_set = _pulse_method_call(
-		c.pa_context_set_source_output_volume, lambda vol: vol.to_c() )
+		c.pa.context_set_source_output_volume, lambda vol: vol.to_c() )
 	source_volume_set = _pulse_method_call(
-		c.pa_context_set_source_volume_by_index, lambda vol: vol.to_c() )
+		c.pa.context_set_source_volume_by_index, lambda vol: vol.to_c() )
 	source_suspend = _pulse_method_call(
-		c.pa_context_suspend_source_by_index, lambda suspend=True: suspend )
+		c.pa.context_suspend_source_by_index, lambda suspend=True: suspend )
 	source_port_set = _pulse_method_call(
-		c.pa_context_set_source_port_by_index, lambda port: port )
+		c.pa.context_set_source_port_by_index, lambda port: port )
 
 
 	def mute(self, obj, mute=True):
@@ -451,7 +463,7 @@ class Pulse(object):
 		mask = 0
 		for m in masks: mask |= self._pa_subscribe_masks[m]
 		with self._pulse_op_cb() as cb:
-			c.pa_context_subscribe(self._ctx, mask, cb, None)
+			c.pa.context_subscribe(self._ctx, mask, cb, None)
 
 	def event_callback_set(self, func):
 		'''Call event_listen() to start receiving these,
@@ -472,4 +484,4 @@ class Pulse(object):
 			Does nothing if libpulse poll is not running yet, so might be racey with
 				event_listen() - be sure to call it in a loop until event_listen returns or something.'''
 		self._loop_stop = True
-		c.pa_mainloop_wakeup(self._loop)
+		c.pa.mainloop_wakeup(self._loop)
