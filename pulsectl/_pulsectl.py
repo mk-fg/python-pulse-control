@@ -14,7 +14,26 @@ if sys.version_info.major >= 3:
 		def __call__(self, val): return force_str(val)
 		def from_param(self, val): return force_bytes(val)
 	c_str_p = c_str_p_type()
-else: c_str_p = c_char_p
+
+	import time
+	mono_time = time.monotonic
+
+else:
+	c_str_p = c_char_p
+
+	def mono_time():
+		if not hasattr(mono_time, 'ts'):
+			class timespec(Structure):
+				_fields_ = [('tv_sec', c_long), ('tv_nsec', c_long)]
+			librt = CDLL('librt.so.1', use_errno=True)
+			mono_time.get = librt.clock_gettime
+			mono_time.get.argtypes = [c_int, POINTER(timespec)]
+			mono_time.ts = timespec
+		ts = mono_time.ts()
+		if mono_time.get(4, pointer(ts)) != 0:
+			err = get_errno()
+			raise OSError(err, os.strerror(err))
+		return ts.tv_sec + ts.tv_nsec * 1e-9
 
 
 PA_VOLUME_NORM = 65536
@@ -457,19 +476,3 @@ class LibPulse(object):
 	def return_value(self): return pointer(c_int())
 
 pa = LibPulse()
-
-
-
-def mono_time():
-	if not hasattr(mono_time, 'ts'):
-		class timespec(Structure):
-			_fields_ = [('tv_sec', c_long), ('tv_nsec', c_long)]
-		librt = CDLL('librt.so.1', use_errno=True)
-		mono_time.get = librt.clock_gettime
-		mono_time.get.argtypes = [c_int, POINTER(timespec)]
-		mono_time.ts = timespec
-	ts = mono_time.ts()
-	if mono_time.get(4, pointer(ts)) != 0:
-		err = get_errno()
-		raise OSError(err, os.strerror(err))
-	return ts.tv_sec + ts.tv_nsec * 1e-9
