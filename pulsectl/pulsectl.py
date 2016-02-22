@@ -327,10 +327,9 @@ class Pulse(object):
 			return _wrapper.func(self, data) if _wrapper.func else data
 		_wrapper.func = None
 		def _add_wrap_doc(func):
-			func.func_name = '...'
-			# XXX
-			# func.func_doc = 'Signature: func({})'.format(
-			# 	'' if len(pulse_func.argtypes) <= 3 else 'index' )
+			func.__name__ = '...'
+			func.__doc__ = 'Signature: func({})'.format(
+				'' if pulse_func.__name__.endswith('_list') else 'index' )
 			return func
 		def _decorator_or_method(func_or_self=None, index=None):
 			if func_or_self.__class__.__name__ == 'Pulse':
@@ -383,14 +382,9 @@ class Pulse(object):
 				method(self._ctx, index, *(list(pulse_call) + [cb, None]))
 		func_args = list(inspect.getargspec(func))
 		func_args[0] = ['index'] + list(func_args[0])
-		k_name, k_doc = '__name__', '__doc__' # XXX
-		# k_name, k_doc = ('func_name', 'func_doc')\
-		# 	if not hasattr(func, '__qualname__') else ()
-		setattr(_wrapper, k_name, '...')
-		setattr( _wrapper, k_doc,
-			'Signature: func' + inspect.formatargspec(*func_args) )
-		if getattr(func, k_doc, None):
-			setattr(_wrapper, k_doc, getattr(_wrapper, k_doc) + '\n\n' + func.func_doc)
+		_wrapper.__name__ = '...'
+		_wrapper.__doc__ = 'Signature: func' + inspect.formatargspec(*func_args)
+		if func.__doc__: _wrapper.__doc__ += '\n\n' + func.__doc__
 		return _wrapper
 
 	sink_input_mute = _pulse_method_call(

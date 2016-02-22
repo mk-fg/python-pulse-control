@@ -33,12 +33,12 @@ Listening for server state change events::
   from pulsectl import Pulse, PulseLoopStop
 
   with Pulse('event-printer') as pulse:
-    # print 'Event types:', ', '.join(pulse.event_types)
-    # print 'Event facilities:', ', '.join(pulse.event_facilities)
-    # print 'Event masks:', ', '.join(pulse.event_masks)
+    # print('Event types:', ', '.join(pulse.event_types))
+    # print('Event facilities:', ', '.join(pulse.event_facilities))
+    # print('Event masks:', ', '.join(pulse.event_masks))
 
     def print_events(ev):
-      print 'Pulse event:', ev
+      print('Pulse event:', ev)
       ### Raise PulseLoopStop for event_listen() to return before timeout (if any)
       # raise PulseLoopStop
 
@@ -89,6 +89,9 @@ Installation
 
 It's a regular package for Python (3.x or 2.x).
 
+Be sure to use python3/python2, pip3/pip2, easy_install-... binaries below,
+based on which python version you want to install the module for.
+
 Using pip_ is the best way::
 
   % pip install pulsectl
@@ -100,7 +103,7 @@ If you don't have it, use::
 
 Alternatively (see also `pip2014.com`_ and `pip install guide`_)::
 
-  % curl https://raw.github.com/pypa/pip/master/contrib/get-pip.py | python2
+  % curl https://raw.github.com/pypa/pip/master/contrib/get-pip.py | python
   % pip install pulsectl
 
 Or, if you absolutely must::
