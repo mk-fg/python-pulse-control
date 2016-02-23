@@ -141,9 +141,8 @@ class PA_SINK_INPUT_INFO(Structure):
 		('mute', c_int),
 		('proplist', POINTER(PA_PROPLIST)),
 		('corked', c_int),
-		('mute', c_int),
 		('has_volume', c_int),
-		('volume_writable', c_int)
+		('volume_writable', c_int),
 	]
 
 
@@ -170,7 +169,7 @@ class PA_SINK_INFO(Structure):
 		('card', c_uint32),
 		('n_ports', c_uint32),
 		('ports', POINTER(POINTER(PA_PORT_INFO))),
-		('active_port', POINTER(PA_PORT_INFO))
+		('active_port', POINTER(PA_PORT_INFO)),
 	]
 
 
@@ -219,7 +218,7 @@ class PA_SOURCE_INFO(Structure):
 		('card', c_uint32),
 		('n_ports', c_uint32),
 		('ports', POINTER(POINTER(PA_PORT_INFO))),
-		('active_port', POINTER(PA_PORT_INFO))
+		('active_port', POINTER(PA_PORT_INFO)),
 	]
 
 
@@ -228,7 +227,7 @@ class PA_CLIENT_INFO(Structure):
 		('index', c_uint32),
 		('name', c_char_p),
 		('owner_module', c_uint32),
-		('driver', c_char_p)
+		('driver', c_char_p),
 	]
 
 
