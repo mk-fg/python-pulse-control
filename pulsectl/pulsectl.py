@@ -217,10 +217,11 @@ class Pulse(object):
 		self.event_masks = sorted(self._pa_subscribe_masks.keys())
 		self.event_callback = None
 
-		if c.pa.context_connect(self._ctx, self.server, 0, None) < 0:
-			self.close()
-			raise PulseError('pa_context_connect failed')
+		if c.pa.context_connect(self._ctx, self.server, 0, None) < 0: self.connected = False
 		while self.connected is None: self._pulse_iterate()
+		if self.connected is False:
+			self.close()
+			raise PulseError('Failed to connect to pulseaudio server')
 
 	def close(self):
 		if self._loop:
@@ -229,7 +230,7 @@ class Pulse(object):
 				self._loop_close = True
 				return
 			try:
-				if self._ctx: c.pa.context_disconnect(self._ctx)
+				if self._ctx and self.connected: c.pa.context_disconnect(self._ctx)
 				c.pa.mainloop_free(self._loop)
 			finally: self._ctx = self._loop = None
 

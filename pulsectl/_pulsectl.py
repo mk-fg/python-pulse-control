@@ -455,11 +455,12 @@ class LibPulse(object):
 		else: func.restype, res_proc = res_proc, None
 
 		def _wrapper(*args):
+			# print('libpulse call:', func_name, args, file=sys.stderr, flush=True)
 			res = func(*args)
 			if isinstance(res_proc, str):
 				if res_proc == 'int_check_zero':
 					if res < 0:
-						err = list()
+						err = [func_name, args]
 						if args and isinstance(args[0], PA_CONTEXT):
 							errno_ = self.context_errno(args[0])
 							err.append(self.strerror(errno_))
