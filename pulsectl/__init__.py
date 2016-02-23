@@ -7,5 +7,5 @@ from .pulsectl import (
 	PulsePort, PulseCard, PulseClient,
 	PulseSink, PulseSinkInfo, PulseSinkInputInfo,
 	PulseSource, PulseSourceInfo, PulseSourceOutputInfo,
-	PulseVolume, PulseVolumeC,
+	PulseVolumeInfo,
 	PulseError, PulseIndexError, PulseLoopStop, PulseObject, Pulse )

@@ -88,7 +88,7 @@ class PulseSinkInfo(PulseObject):
 	def __init__(self, pa_sink_info):
 		super(PulseSinkInfo, self).__init__(
 			pa_sink_info,
-			volume=PulseVolumeC(pa_sink_info.volume),
+			volume=PulseVolumeInfo(pa_sink_info.volume),
 			ports=list(
 				PulsePort(pa_sink_info.ports[n].contents)
 				for n in range(pa_sink_info.n_ports) ),
@@ -106,7 +106,7 @@ class PulseSinkInputInfo(PulseObject):
 	def __init__(self, pa_sink_input_info):
 		super(PulseSinkInputInfo, self).__init__(
 			pa_sink_input_info,
-			volume=PulseVolumeC(pa_sink_input_info.volume) )
+			volume=PulseVolumeInfo(pa_sink_input_info.volume) )
 
 	def __str__(self):
 		return self._as_str(fields='index name mute')
@@ -122,7 +122,7 @@ class PulseSourceInfo(PulseObject):
 	def __init__(self, pa_source_info):
 		super(PulseSourceInfo, self).__init__(
 			pa_source_info,
-			volume=PulseVolumeC(pa_source_info.volume),
+			volume=PulseVolumeInfo(pa_source_info.volume),
 			ports=list(
 				PulsePort(pa_source_info.ports[n].contents)
 				for n in range(pa_source_info.n_ports) ),
@@ -140,34 +140,33 @@ class PulseSourceOutputInfo(PulseObject):
 	def __init__(self, pa_source_output_info):
 		super(PulseSourceOutputInfo, self).__init__(
 			pa_source_output_info,
-			volume=PulseVolumeC(pa_source_output_info.volume) )
+			volume=PulseVolumeInfo(pa_source_output_info.volume) )
 
 	def __str__(self):
 		return self._as_str(fields='index name mute')
 
-class PulseVolume(PulseObject):
+class PulseVolumeInfo(PulseObject):
 
-	def __init__(self, values=0, channels=2):
-		values = max(min(values, 150), 0)
-		self.channels = channels
-		self.values = [values] * self.channels
+	def __init__(self, struct):
+		self.values = list( (x / c.PA_VOLUME_NORM)
+			for x in map(float, struct.values[:struct.channels]) )
 
-	def to_c(self):
-		self.values = list(map(lambda x: max(min(x, 150), 0), self.values))
-		cvolume = c.PA_CVOLUME()
-		cvolume.channels = self.channels
-		for x in range(self.channels):
-			cvolume.values[x] = int(round((self.values[x] * c.PA_VOLUME_NORM) / 100))
-		return cvolume
+	@property
+	def value_flat(self): return sum(self.values) / float(len(self.values))
+	@value_flat.setter
+	def value_flat(self, v): self.values = [v] * len(self.values)
+
+	def to_struct(self):
+		struct = c.PA_CVOLUME()
+		struct.channels = len(self.values)
+		for x in range(struct.channels):
+			struct.values[x] = min( c.PA_VOLUME_UI_MAX,
+				int(round(self.values[x] * c.PA_VOLUME_NORM)) )
+		return struct
 
 	def __str__(self):
-		return self._as_str(channels=self.channels, volumes=' / '.join(map('{}%'.format, self.values)))
-
-class PulseVolumeC(PulseVolume):
-
-	def __init__(self, cvolume):
-		self.channels = cvolume.channels
-		self.values = [(round(x * 100 / c.PA_VOLUME_NORM)) for x in cvolume.values[:self.channels]]
+		return self._as_str( channels=self.channels,
+			volumes=' / '.join('{}%'.format(int(round(v*100))) for v in self.values) )
 
 class PulseEventInfo(PulseObject):
 
@@ -395,9 +394,9 @@ class Pulse(object):
 	sink_mute = _pulse_method_call(
 		c.pa.context_set_sink_mute_by_index, lambda mute=True: mute )
 	sink_input_volume_set = _pulse_method_call(
-		c.pa.context_set_sink_input_volume, lambda vol: vol.to_c() )
+		c.pa.context_set_sink_input_volume, lambda vol: vol.to_struct() )
 	sink_volume_set = _pulse_method_call(
-		c.pa.context_set_sink_volume_by_index, lambda vol: vol.to_c() )
+		c.pa.context_set_sink_volume_by_index, lambda vol: vol.to_struct() )
 	sink_suspend = _pulse_method_call(
 		c.pa.context_suspend_sink_by_index, lambda suspend=True: suspend )
 	sink_port_set = _pulse_method_call(
@@ -410,9 +409,9 @@ class Pulse(object):
 	source_mute = _pulse_method_call(
 		c.pa.context_set_source_mute_by_index, lambda mute=True: mute )
 	source_output_volume_set = _pulse_method_call(
-		c.pa.context_set_source_output_volume, lambda vol: vol.to_c() )
+		c.pa.context_set_source_output_volume, lambda vol: vol.to_struct() )
 	source_volume_set = _pulse_method_call(
-		c.pa.context_set_source_volume_by_index, lambda vol: vol.to_c() )
+		c.pa.context_set_source_volume_by_index, lambda vol: vol.to_struct() )
 	source_suspend = _pulse_method_call(
 		c.pa.context_suspend_source_by_index, lambda suspend=True: suspend )
 	source_port_set = _pulse_method_call(

@@ -26,7 +26,8 @@ Simple example::
 
   with Pulse('volume-increaser') as pulse:
     for sink in pulse.sink_list():
-      pulse.volume_change_all_chans(sink, 10)
+      # Volume is usually in 0-1.0 range, with >1.0 being soft-boosted
+      pulse.volume_change_all_chans(sink, 0.1)
 
 Listening for server state change events::
 
@@ -70,8 +71,8 @@ Misc other tinkering::
    <PulseSourceInfo at 7fcb0615da10 - desc='Built-in Audio', index=1L, mute=0, name='alsa-mic', channels=2, volumes='100.0%, 100.0%'>]
 
   >>> sink = pulse.sink_list()[0]
-  >>> pulse.volume_change_all_chans(sink, -10)
-  >>> pulse.volume_set_all_chans(sink, 50)
+  >>> pulse.volume_change_all_chans(sink, -0.1)
+  >>> pulse.volume_set_all_chans(sink, 0.5)
 
   >>> help(pulse)
   ...
