@@ -29,7 +29,7 @@ class PulseObject(object):
 		if field_data_dict: field_data.update(field_data_dict)
 		if struct is None: field_data, struct = dict(), field_data
 		assert not set(field_data.keys()).difference(fields)
-		self._copy_struct_fields(field_data, fields=field_data.keys())
+		if field_data: self._copy_struct_fields(field_data, fields=field_data.keys())
 		self._copy_struct_fields(struct, fields=set(fields).difference(field_data.keys()))
 
 		if struct:
@@ -39,6 +39,15 @@ class PulseObject(object):
 					k = c.pa.proplist_iterate(struct.proplist, c.byref(state))
 					if not k: break
 					self.proplist[k] = c.pa.proplist_gets(struct.proplist, k)
+			if hasattr(struct, 'volume'):
+				self.volume = PulseVolumeInfo(struct.volume)
+			if hasattr(struct, 'n_ports'):
+				self.port_list = list(
+					PulsePortInfo(struct.ports[n].contents)
+					for n in range(struct.n_ports) )
+			if hasattr(struct, 'active_port'):
+				self.port_active = None if not struct.active_port\
+					else PulsePortInfo(struct.active_port.contents)
 			if hasattr(struct, 'channel_map'):
 				s = c.create_string_buffer(b'\0' * 512)
 				c.pa.channel_map_snprint(s, len(s), struct.channel_map)
@@ -68,79 +77,49 @@ class PulseObject(object):
 		return '<{} at {:x} - {}>'.format(self.__class__.__name__, id(self), str(self))
 
 
-class PulsePort(PulseObject):
+class PulsePortInfo(PulseObject):
 	c_struct_fields = 'name description priority'
 
-class PulseCard(PulseObject):
+	def __eq__(self, o):
+		if not isinstance(o, PulsePortInfo): raise TypeError(o)
+		return self.name == o.name
+
+	def __hash__(self): return hash(self.name)
+
+class PulseCardInfo(PulseObject):
 	c_struct_fields = 'name index driver owner_module n_profiles'
 
-class PulseClient(PulseObject):
+class PulseClientInfo(PulseObject):
 	c_struct_fields = 'name index driver owner_module'
 
-class PulseSink(PulseObject):
-	c_struct_fields = 'index name mute volume client'
-
 class PulseSinkInfo(PulseObject):
-	c_struct_fields = ( 'index name mute volume'
+	c_struct_fields = ( 'index name mute'
 		' description sample_spec owner_module latency driver monitor_source'
-		' monitor_source_name flags configured_latency n_ports ports active_port' )
-
-	def __init__(self, pa_sink_info):
-		super(PulseSinkInfo, self).__init__(
-			pa_sink_info,
-			volume=PulseVolumeInfo(pa_sink_info.volume),
-			ports=list(
-				PulsePort(pa_sink_info.ports[n].contents)
-				for n in range(pa_sink_info.n_ports) ),
-			active_port=PulsePort(pa_sink_info.active_port.contents)
-				if pa_sink_info.n_ports else None )
+		' monitor_source_name flags configured_latency' )
 
 	def __str__(self):
 		return self._as_str(self.volume, fields='index name description mute')
 
 class PulseSinkInputInfo(PulseObject):
-	c_struct_fields = ( 'index name mute volume client'
+	c_struct_fields = ( 'index name mute client'
 		' owner_module sink sample_spec'
 		' buffer_usec sink_usec resample_method driver' )
-
-	def __init__(self, pa_sink_input_info):
-		super(PulseSinkInputInfo, self).__init__(
-			pa_sink_input_info,
-			volume=PulseVolumeInfo(pa_sink_input_info.volume) )
 
 	def __str__(self):
 		return self._as_str(fields='index name mute')
 
-class PulseSource(PulseObject):
-	c_struct_fields = 'index name mute volume client'
-
 class PulseSourceInfo(PulseObject):
-	c_struct_fields = ( 'index name mute volume'
+	c_struct_fields = ( 'index name mute'
 		' description sample_spec owner_module latency driver monitor_of_sink'
-		' monitor_of_sink_name flags configured_latency n_ports ports active_port' )
-
-	def __init__(self, pa_source_info):
-		super(PulseSourceInfo, self).__init__(
-			pa_source_info,
-			volume=PulseVolumeInfo(pa_source_info.volume),
-			ports=list(
-				PulsePort(pa_source_info.ports[n].contents)
-				for n in range(pa_source_info.n_ports) ),
-			active_port=PulsePort(pa_source_info.active_port.contents)
-				if pa_source_info.n_ports else None )
+		' monitor_of_sink_name flags configured_latency' )
 
 	def __str__(self):
 		return self._as_str(self.volume, fields='index name description mute')
 
 class PulseSourceOutputInfo(PulseObject):
-	c_struct_fields = ( 'index name mute volume client'
+	c_struct_fields = ( 'index name mute client'
 		' owner_module source sample_spec'
 		' buffer_usec source_usec resample_method driver' )
-
-	def __init__(self, pa_source_output_info):
-		super(PulseSourceOutputInfo, self).__init__(
-			pa_source_output_info,
-			volume=PulseVolumeInfo(pa_source_output_info.volume) )
 
 	def __str__(self):
 		return self._as_str(fields='index name mute')
@@ -165,7 +144,7 @@ class PulseVolumeInfo(PulseObject):
 		return struct
 
 	def __str__(self):
-		return self._as_str( channels=self.channels,
+		return self._as_str( channels=len(self.values),
 			volumes=' / '.join('{}%'.format(int(round(v*100))) for v in self.values) )
 
 class PulseEventInfo(PulseObject):
@@ -363,13 +342,13 @@ class Pulse(object):
 	source_info = _pulse_get_list(
 		c.PA_SOURCE_INFO_CB_T, c.pa.context_get_source_info_by_index, PulseSourceInfo )
 	card_list = _pulse_get_list(
-		c.PA_CARD_INFO_CB_T, c.pa.context_get_card_info_list, PulseCard )
+		c.PA_CARD_INFO_CB_T, c.pa.context_get_card_info_list, PulseCardInfo )
 	card_info = _pulse_get_list(
-		c.PA_CARD_INFO_CB_T, c.pa.context_get_card_info_by_index, PulseCard )
+		c.PA_CARD_INFO_CB_T, c.pa.context_get_card_info_by_index, PulseCardInfo )
 	client_list = _pulse_get_list(
-		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info_list, PulseClient )
+		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info_list, PulseClientInfo )
 	client_info = _pulse_get_list(
-		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info, PulseClient )
+		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info, PulseClientInfo )
 
 	def _pulse_method_call(method_or_func, func=None):
 		if func is None: func_method, func = None, method_or_func
@@ -400,7 +379,8 @@ class Pulse(object):
 	sink_suspend = _pulse_method_call(
 		c.pa.context_suspend_sink_by_index, lambda suspend=True: suspend )
 	sink_port_set = _pulse_method_call(
-		c.pa.context_set_sink_port_by_index, lambda port: port )
+		c.pa.context_set_sink_port_by_index,
+		lambda port: port.name if isinstance(port, PulsePortInfo) else port )
 
 	source_output_mute = _pulse_method_call(
 		c.pa.context_set_source_output_mute, lambda mute=True: mute )
@@ -415,7 +395,8 @@ class Pulse(object):
 	source_suspend = _pulse_method_call(
 		c.pa.context_suspend_source_by_index, lambda suspend=True: suspend )
 	source_port_set = _pulse_method_call(
-		c.pa.context_set_source_port_by_index, lambda port: port )
+		c.pa.context_set_source_port_by_index,
+		lambda port: port.name if isinstance(port, PulsePortInfo) else port )
 
 
 	def mute(self, obj, mute=True):
@@ -428,6 +409,15 @@ class Pulse(object):
 		if not method: raise NotImplementedError(type(obj))
 		method(obj.index, mute)
 		obj.mute = mute
+
+	def port_set(self, obj, port):
+		assert isinstance(obj, PulseObject), [type(obj), obj]
+		method = {
+			PulseSinkInfo: self.sink_port_set,
+			PulseSourceInfo: self.source_port_set }.get(type(obj))
+		if not method: raise NotImplementedError(type(obj))
+		method(obj.index, port)
+		obj.port_active = port
 
 	def volume_set(self, obj, vol):
 		assert isinstance(obj, PulseObject), [type(obj), obj]
