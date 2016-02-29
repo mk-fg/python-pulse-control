@@ -6,4 +6,4 @@ from . import _pulsectl
 from .pulsectl import (
 	PulseCardInfo, PulseClientInfo, PulsePortInfo, PulseVolumeInfo,
 	PulseSinkInfo, PulseSinkInputInfo, PulseSourceInfo, PulseSourceOutputInfo,
-	PulseError, PulseIndexError, PulseLoopStop, PulseObject, Pulse )
+	PulseError, PulseIndexError, PulseLoopStop, PulseDisconnected, PulseObject, Pulse )

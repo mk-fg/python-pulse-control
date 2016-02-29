@@ -19,6 +19,7 @@ class PulseOperationFailed(PulseError): pass
 class PulseIndexError(PulseError): pass
 
 class PulseLoopStop(Exception): pass
+class PulseDisconnected(Exception): pass
 
 class PulseObject(object):
 
@@ -220,8 +221,8 @@ class Pulse(object):
 		state = c.pa.context_get_state(ctx)
 		if state >= c.PA_CONTEXT_READY:
 			if state == c.PA_CONTEXT_READY: self.connected = True
-			elif state == c.PA_CONTEXT_FAILED: self.connected = False
-			# c.PA_CONTEXT_TERMINATED also happens here on clean disconnect
+			elif state in [c.PA_CONTEXT_FAILED, c.PA_CONTEXT_TERMINATED]:
+				self.connected, self._loop_stop = False, True
 		return 0
 
 	def _pulse_subscribe_cb(self, ctx, ev, idx, userdata):
@@ -454,14 +455,16 @@ class Pulse(object):
 			and be sure to raise PulseLoopStop in a callback to stop the loop.'''
 		self.event_callback = func
 
-	def event_listen(self, timeout=None):
+	def event_listen(self, timeout=None, raise_on_disconnect=True):
 		'''Does not return until PulseLoopStop
 				gets raised in event callback or timeout passes.
 			timeout should be in seconds (float),
 				0 for non-blocking poll and None (default) for no timeout.
+			raise_on_disconnect causes PulseDisconnected exceptions by default.
 			Do not run any pulse operations from these callbacks.'''
 		assert self.event_callback
 		self._pulse_poll(timeout)
+		if raise_on_disconnect and not self.connected: raise PulseDisconnected()
 
 	def event_listen_stop(self):
 		'''Stop event_listen() loop from e.g. another thread.
