@@ -9,8 +9,15 @@ import sys, inspect
 from . import _pulsectl as c
 
 
-if sys.version_info.major >= 3: decodable = bytes
-else: range, map, decodable = xrange, it.imap, type('nx', (object,), dict())
+if sys.version_info.major >= 3:
+	decodable = bytes
+	print_err = ft.partial(print, file=sys.stderr, flush=True)
+else:
+	range, map, decodable = xrange, it.imap, type('nx', (object,), dict())
+	def print_err(*args, **kws):
+		kws.setdefault('file', sys.stderr)
+		print(*args, **kws)
+		kws['file'].flush()
 def str_decode(s): return s if not isinstance(s, decodable) else s.decode()
 
 
@@ -159,19 +166,29 @@ class PulseEventInfo(PulseObject):
 
 class Pulse(object):
 
-	def __init__(self, client_name=None, server=None):
+	def __init__(self, client_name=None, server=None, connect=True, threading_lock=False):
 		self.name = client_name or 'pulsectl'
 		self.server, self.connected = server, None
 		self._ret = self._ctx = self._loop = self._api = None
 		self._actions, self._action_ids = dict(),\
 			it.chain.from_iterable(map(range, it.repeat(2**30)))
 		self.init()
+		if threading_lock:
+			if threading_lock is True:
+				import threading
+				threading_lock = threading.Lock()
+			self._loop_lock = threading_lock
+		if connect:
+			try: self.connect(autospawn=True)
+			except PulseError:
+				self.close()
+				raise
 
 	def init(self):
 		self._pa_state_cb = c.PA_STATE_CB_T(self._pulse_state_cb)
 		self._pa_subscribe_cb = c.PA_SUBSCRIBE_CB_T(self._pulse_subscribe_cb)
 
-		self._loop = c.pa.mainloop_new()
+		self._loop, self._loop_lock = c.pa.mainloop_new(), None
 		self._loop_running = self._loop_close = False
 		self._api = c.pa.mainloop_get_api(self._loop)
 
@@ -196,11 +213,21 @@ class Pulse(object):
 		self.event_masks = sorted(self._pa_subscribe_masks.keys())
 		self.event_callback = None
 
-		if c.pa.context_connect(self._ctx, self.server, 0, None) < 0: self.connected = False
+	def connect(self, autospawn=False, wait=False):
+		'''Connect to pulseaudio server.
+			"autospawn" option will start new pulse daemon, if necessary.
+			Specifying "wait" option will make function block until pulseaudio server appears.'''
+		flags, self.connected = 0, None
+		if not autospawn: flags |= c.PA_CONTEXT_NOAUTOSPAWN
+		if wait: flags |= c.PA_CONTEXT_NOFAIL
+		try: c.pa.context_connect(self._ctx, self.server, flags, None)
+		except c.pa.CallError: self.connected = False
 		while self.connected is None: self._pulse_iterate()
-		if self.connected is False:
-			self.close()
-			raise PulseError('Failed to connect to pulseaudio server')
+		if self.connected is False: raise PulseError('Failed to connect to pulseaudio server')
+
+	def disconnect(self):
+		if not self._ctx or not self.connected: return
+		c.pa.context_disconnect(self._ctx)
 
 	def close(self):
 		if self._loop:
@@ -209,7 +236,7 @@ class Pulse(object):
 				self._loop_close = True
 				return
 			try:
-				if self._ctx and self.connected: c.pa.context_disconnect(self._ctx)
+				self.disconnect()
 				c.pa.mainloop_free(self._loop)
 			finally: self._ctx = self._loop = None
 
@@ -235,19 +262,23 @@ class Pulse(object):
 
 	@contextmanager
 	def _pulse_loop(self):
-		if self._loop_running:
-			raise PulseError(
-				'Running blocking pulse operations from pulse eventloop callbacks'
-					' or other threads while loop is running is not supported by this python module.'
-				' Supporting this would require threads or proper asyncio/twisted-like async code.'
-				' Workaround can be to stop the loop'
-					' (raise PulseLoopStop in callback or event_loop_stop() from another thread),'
-					' doing whatever pulse calls synchronously and then resuming event_listen() loop.' )
-		self._loop_running, self._loop_stop = True, False
-		try: yield self._loop
+		if self._loop_lock: self._loop_lock.acquire()
+		try:
+			if self._loop_running:
+				raise PulseError(
+					'Running blocking pulse operations from pulse eventloop callbacks'
+						' or other threads while loop is running is not supported by this python module.'
+					' Supporting this would require threads or proper asyncio/twisted-like async code.'
+					' Workaround can be to stop the loop'
+						' (raise PulseLoopStop in callback or event_loop_stop() from another thread),'
+						' doing whatever pulse calls synchronously and then resuming event_listen() loop.' )
+			self._loop_running, self._loop_stop = True, False
+			try: yield self._loop
+			finally:
+				self._loop_running = False
+				if self._loop_close: self.close()
 		finally:
-			self._loop_running = False
-			if self._loop_close: self.close()
+			if self._loop_lock: self._loop_lock.release()
 
 	def _pulse_run(self):
 		with self._pulse_loop() as loop: c.pa.mainloop_run(loop, self._ret)

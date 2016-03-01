@@ -47,6 +47,9 @@ PA_VOLUME_UI_MAX = 2927386 # pa_sw_volume_from_dB(+11.0)
 PA_CHANNELS_MAX = 32
 PA_USEC_T = c_uint64
 
+PA_CONTEXT_NOAUTOSPAWN = 0x0001
+PA_CONTEXT_NOFAIL = 0x0002
+
 PA_CONTEXT_UNCONNECTED = 0
 PA_CONTEXT_CONNECTING = 1
 PA_CONTEXT_AUTHORIZING = 2
@@ -323,20 +326,20 @@ class LibPulse(object):
 		pa_mainloop_new=(POINTER(PA_MAINLOOP)),
 		pa_mainloop_get_api=([POINTER(PA_MAINLOOP)], POINTER(PA_MAINLOOP_API)),
 		pa_mainloop_run=([POINTER(PA_MAINLOOP), POINTER(c_int)], c_int),
-		pa_mainloop_prepare=([POINTER(PA_MAINLOOP), c_int], 'int_check_zero'),
-		pa_mainloop_poll=([POINTER(PA_MAINLOOP)], 'int_check_zero'),
-		pa_mainloop_dispatch=([POINTER(PA_MAINLOOP)], 'int_check_zero'),
-		pa_mainloop_iterate=([POINTER(PA_MAINLOOP), c_int, POINTER(c_int)], 'int_check_zero'),
+		pa_mainloop_prepare=([POINTER(PA_MAINLOOP), c_int], 'int_check_ge0'),
+		pa_mainloop_poll=([POINTER(PA_MAINLOOP)], 'int_check_ge0'),
+		pa_mainloop_dispatch=([POINTER(PA_MAINLOOP)], 'int_check_ge0'),
+		pa_mainloop_iterate=([POINTER(PA_MAINLOOP), c_int, POINTER(c_int)], 'int_check_ge0'),
 		pa_mainloop_wakeup=[POINTER(PA_MAINLOOP)],
 		pa_mainloop_quit=([POINTER(PA_MAINLOOP), c_int]),
 		pa_mainloop_free=[POINTER(PA_MAINLOOP)],
-		pa_signal_init=([POINTER(PA_MAINLOOP_API)], 'int_check_zero'),
+		pa_signal_init=([POINTER(PA_MAINLOOP_API)], 'int_check_ge0'),
 		pa_signal_new=([c_int, PA_SIGNAL_CB_T, POINTER(c_int)]),
 		pa_signal_done=None,
 		pa_context_errno=([POINTER(PA_CONTEXT)], c_int),
 		pa_context_new=([POINTER(PA_MAINLOOP_API), c_str_p], POINTER(PA_CONTEXT)),
 		pa_context_set_state_callback=([POINTER(PA_CONTEXT), PA_STATE_CB_T, c_void_p]),
-		pa_context_connect=([POINTER(PA_CONTEXT), c_str_p, c_int, POINTER(c_int)], c_int),
+		pa_context_connect=([POINTER(PA_CONTEXT), c_str_p, c_int, POINTER(c_int)], 'int_check_ge0'),
 		pa_context_get_state=([POINTER(PA_CONTEXT)], c_int),
 		pa_context_disconnect=[POINTER(PA_CONTEXT)],
 		pa_context_drain=(
@@ -448,7 +451,7 @@ class LibPulse(object):
 				if not isinstance(spec, tuple): spec = (spec,)
 				for v in spec:
 					assert v, [k, spec, v]
-					if isinstance(v, (tuple, list)): args = v
+					if isinstance(v, list): args = v
 					else: res_proc = v
 			func_k = k if not k.startswith('pa_') else k[3:]
 			self.funcs[func_k] = self._func_wrapper(k, func, args, res_proc)
@@ -456,6 +459,7 @@ class LibPulse(object):
 	def _func_wrapper(self, func_name, func, args=list(), res_proc=None):
 		func.restype, func.argtypes = None, args
 		if hasattr(res_proc, 'c_type'): func.restype = res_proc.c_type
+		elif isinstance(res_proc, tuple): func.restype, res_proc = res_proc
 		elif isinstance(res_proc, str):
 			if res_proc.startswith('int_check_'): func.restype = c_int
 		else: func.restype, res_proc = res_proc, None
@@ -464,13 +468,15 @@ class LibPulse(object):
 			# print('libpulse call:', func_name, args, file=sys.stderr, flush=True)
 			res = func(*args)
 			if isinstance(res_proc, str):
-				if res_proc == 'int_check_zero':
+				if res_proc == 'int_check_ge0':
 					if res < 0:
 						err = [func_name, args]
 						if args and isinstance(args[0], PA_CONTEXT):
 							errno_ = self.context_errno(args[0])
 							err.append(self.strerror(errno_))
 						raise self.CallError(*err)
+				elif res_proc == 'not_null':
+					if not res: raise CallError(func_name, args, 'Null pointer returned')
 				else: raise ValueError(res_proc)
 			elif res_proc: res = res_proc(res)
 			return res
