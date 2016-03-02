@@ -167,6 +167,14 @@ class PulseEventInfo(PulseObject):
 class Pulse(object):
 
 	def __init__(self, client_name=None, server=None, connect=True, threading_lock=False):
+		'''Connects to specified pulse server by default.
+			Specifying "connect=False" here prevents that, but be sure to call connect() later.
+			"connect=False" can also be used here to
+				have control over options passed to connect() method.
+			"threading_lock" option (either bool or lock instance) can be used to wrap
+				non-threadsafe eventloop polling (can only be done from one thread at a time)
+				into a mutex lock, and should only be needed if same-instance methods
+				will/should/might be called from different threads at the same time.'''
 		self.name = client_name or 'pulsectl'
 		self.server, self.connected = server, None
 		self._ret = self._ctx = self._loop = self._api = None

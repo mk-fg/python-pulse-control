@@ -2,10 +2,11 @@ python-pulse-control (pulsectl module)
 ======================================
 
 Python (3.x and 2.x) high-level interface and ctypes-based bindings for
-PulseAudio_ (libpulse).
+PulseAudio_ (libpulse), mostly focused on mixer-like controls and
+introspection-related operations (as opposed to e.g. submitting sound samples to
+play, player-like client).
 
-Forked from pulsemixer_ (which had this code bundled) to re-use this awesome
-stuff in other projects.
+Originally forked from pulsemixer_ project, which had this code bundled.
 
 .. _PulseAudio: https://wiki.freedesktop.org/www/Software/PulseAudio/
 .. _pulsemixer: https://github.com/GeorgeFilipkin/pulsemixer/
@@ -81,7 +82,10 @@ Current code logic is that all methods are invoked through the Pulse instance,
 and everything returned from these are "Pulse-Something-Info" objects - thin
 wrappers around C structs that describe the thing, without any methods attached.
 
-Module is relatively new and these high-level interfaces might change in the future.
+Somewhat extended usage example can be found in `pulseaudio-mixer-cli`_ project
+code.
+
+.. _pulseaudio-mixer-cli: https://github.com/mk-fg/pulseaudio-mixer-cli/blob/master/pa-mixer-mk3.py
 
 
 
@@ -139,3 +143,5 @@ Links
   low-level bindings module, auto-generated from pulseaudio header files.
 
   Branches there have bindings for different (newer) pulseaudio versions.
+
+* `pulseaudio-mixer-cli`_ - alsamixer-like script build on top of this module.
