@@ -317,6 +317,7 @@ class Pulse(object):
 				try:
 					c.pa.mainloop_prepare(loop, delay) # usec
 					c.pa.mainloop_poll(loop)
+					if not self._loop: break # poll() interrupted by close() or such
 					c.pa.mainloop_dispatch(loop)
 				except c.pa.CallError as err:
 					if err.args[1] == -2: break # indicates stopped loop
