@@ -481,7 +481,7 @@ class Pulse(object):
 
 	def volume_get_all_chans(self, obj):
 		assert isinstance(obj, PulseObject), [type(obj), obj]
-		return int(sum(obj.volume.values) / len(obj.volume.values))
+		return sum(obj.volume.values) / len(obj.volume.values)
 
 
 	def event_mask_set(self, *masks):
