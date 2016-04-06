@@ -95,13 +95,14 @@ Installation
 It's a regular package for Python (3.x or 2.x).
 
 Be sure to use python3/python2, pip3/pip2, easy_install-... binaries below,
-based on which python version you want to install the module for.
+based on which python version you want to install the module for, if you have
+several on the system (as is norm these days for py2-py3 transition).
 
 Using pip_ is the best way::
 
   % pip install pulsectl
 
-If you don't have it, use::
+If you don't have pip::
 
   % easy_install pip
   % pip install pulsectl
@@ -123,7 +124,7 @@ Current-git version can be installed like this::
 
 Note that to install stuff in system-wide PATH and site-packages, elevated
 privileges are often required.
-Use "install --user", `~/.pydistutils.cfg`_ or virtualenv_ to do unprivileged
+Use "...install --user", `~/.pydistutils.cfg`_ or virtualenv_ to do unprivileged
 installs into custom paths.
 
 .. _pip: http://pip-installer.org/
@@ -140,8 +141,9 @@ Links
 * pulsemixer_ - initial source for this project (embedded in the tool).
 
 * `libpulseaudio <https://github.com/thelinuxdude/python-pulseaudio/>`_ -
-  low-level bindings module, auto-generated from pulseaudio header files.
+  different libpulse bindings module, more low-level, auto-generated from
+  pulseaudio header files.
 
   Branches there have bindings for different (newer) pulseaudio versions.
 
-* `pulseaudio-mixer-cli`_ - alsamixer-like script build on top of this module.
+* `pulseaudio-mixer-cli`_ - alsamixer-like script built on top of this module.
