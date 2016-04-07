@@ -257,6 +257,20 @@ class PA_CARD_INFO(Structure):
 	]
 
 
+class POLLFD(Structure):
+	_fields_ = [
+		('fd', c_int),
+		('events', c_short),
+		('revents', c_short),
+	]
+
+
+PA_POLL_FUNC_T = CFUNCTYPE(c_int,
+	POINTER(POLLFD),
+	c_ulong,
+	c_int,
+	c_void_p)
+
 PA_SIGNAL_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_MAINLOOP_API),
 	POINTER(c_int),
@@ -331,6 +345,7 @@ class LibPulse(object):
 		pa_mainloop_dispatch=([POINTER(PA_MAINLOOP)], 'int_check_ge0'),
 		pa_mainloop_iterate=([POINTER(PA_MAINLOOP), c_int, POINTER(c_int)], 'int_check_ge0'),
 		pa_mainloop_wakeup=[POINTER(PA_MAINLOOP)],
+		pa_mainloop_set_poll_func=[POINTER(PA_MAINLOOP), PA_POLL_FUNC_T, c_void_p],
 		pa_mainloop_quit=([POINTER(PA_MAINLOOP), c_int]),
 		pa_mainloop_free=[POINTER(PA_MAINLOOP)],
 		pa_signal_init=([POINTER(PA_MAINLOOP_API)], 'int_check_ge0'),

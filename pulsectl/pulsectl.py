@@ -4,7 +4,7 @@ from __future__ import print_function
 import itertools as it, operator as op, functools as ft
 from collections import defaultdict
 from contextlib import contextmanager
-import sys, inspect
+import sys, inspect, traceback
 
 from . import _pulsectl as c
 
@@ -268,6 +268,14 @@ class Pulse(object):
 		try: self.event_callback(PulseEventInfo(ev_t, ev_fac, idx))
 		except PulseLoopStop: self._loop_stop = True
 
+	def _pulse_poll_cb(self, func, func_err, ufds, nfds, timeout, userdata):
+		fd_list = list(ufds[n] for n in range(nfds))
+		try: nfds = func(fd_list, timeout / 1000.0)
+		except Exception as err:
+			func_err(*sys.exc_info())
+			return -1
+		return nfds
+
 	@contextmanager
 	def _pulse_loop(self):
 		if self._loop_lock: self._loop_lock.acquire()
@@ -512,3 +520,16 @@ class Pulse(object):
 				event_listen() - be sure to call it in a loop until event_listen returns or something.'''
 		self._loop_stop = True
 		c.pa.mainloop_wakeup(self._loop)
+
+
+	def set_poll_func(self, func, func_err_handler=None):
+		'''Can be used to integrate pulse client into existing eventloop.
+			Function will be passed a list of pollfd structs and timeout value (seconds, float),
+				which it is responsible to use and modify (set poll flags) accordingly,
+				returning int value >= 0 with number of fds that had any new events within timeout.
+			func_err_handler defaults to traceback.print_exception(),
+				and will be called on any exceptions from callback (to e.g. log these),
+				returning poll error code (-1) to libpulse after that.'''
+		if not func_err_handler: func_err_handler = traceback.print_exception
+		self._pa_poll_cb = c.PA_POLL_FUNC_T(ft.partial(self._pulse_poll_cb, func, func_err_handler))
+		c.pa.mainloop_set_poll_func(self._loop, self._pa_poll_cb, None)

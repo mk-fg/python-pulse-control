@@ -82,6 +82,10 @@ Current code logic is that all methods are invoked through the Pulse instance,
 and everything returned from these are "Pulse-Something-Info" objects - thin
 wrappers around C structs that describe the thing, without any methods attached.
 
+Pulse client can be integrated into existing eventloop (e.g. asyncio, twisted,
+etc) using ``Pulse.set_poll_func()`` or ``Pulse.event_listen()`` in a separate
+thread.
+
 Somewhat extended usage example can be found in `pulseaudio-mixer-cli`_ project
 code.
 
