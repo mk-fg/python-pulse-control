@@ -89,7 +89,65 @@ thread.
 Somewhat extended usage example can be found in `pulseaudio-mixer-cli`_ project
 code.
 
-.. _pulseaudio-mixer-cli: https://github.com/mk-fg/pulseaudio-mixer-cli/blob/master/pa-mixer-mk3.py
+
+
+Concepts
+--------
+
+Some less obvious things are described in this section.
+
+
+Volume
+``````
+
+All volume values in this module are float objects in 0-65536.0 range, with
+following meaning:
+
+* 0.0 volume there is "no sound".
+
+* 1.0 value is "current sink volume level", 100% or PA_VOLUME_NORM.
+
+* >1.0 and up to 65536.0 (PA_VOLUME_MAX / PA_VOLUME_NORM) - software-boosted
+  sound volume (higher values will negatively affect sound quality).
+
+Probably a good idea to set volume only in 0-1.0 range and boost volume in
+hardware without any quality loss, e.g. by tweaking sink volume, which
+corresponds to ALSA/hardware volume, if that option is available.
+
+See ``src/pulse/volume.h`` in pulseaudio sources for all the gory details.
+
+
+Event-handling code and threads
+```````````````````````````````
+
+libpulse clients always work as an event loop, though this module kinda hides
+it, presenting a more conventional blocking interface.
+
+So what happens on any call (e.g. ``pulse.mute(...)``) is:
+
+* Send command to libpulse, specifying callback for when its done.
+* Run libpulse event loop until that callback gets called.
+* Return result of that callback.
+
+``event_callback_set()`` and ``event_listen()`` calls essentally do raw first
+and second step here.
+
+Which means that any pulse calls from callback function can't be used when
+``event_listen()`` (or any other pulse call through this module, for that
+matter) waits for return value and runs libpulse loop already.
+
+One can raise PulseLoopStop exception there to make ``event_listen()`` return,
+run whatever pulse calls after that, then re-start the ``event_listen()`` thing.
+
+This will not miss any events, as all calls do same thing as ``event_listen()``
+does (second step above), and can cause callable passed to
+``event_callback_set()`` to fire.
+
+Also, same instance of libpulse eventloop can't be run from different threads,
+naturally, so if threads are used, client can be initialized with
+``threading_lock=True`` option (can also accept lock instance instead of True)
+to create a mutex around step-2 (run event loop) from the list above, so two
+threads won't try to do it at the same time.
 
 
 
@@ -151,3 +209,7 @@ Links
   Branches there have bindings for different (newer) pulseaudio versions.
 
 * `pulseaudio-mixer-cli`_ - alsamixer-like script built on top of this module.
+
+
+
+.. _pulseaudio-mixer-cli: https://github.com/mk-fg/pulseaudio-mixer-cli/blob/master/pa-mixer-mk3.py
