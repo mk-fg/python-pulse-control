@@ -102,8 +102,8 @@ class PulseClientInfo(PulseObject):
 
 class PulseSinkInfo(PulseObject):
 	c_struct_fields = ( 'index name mute'
-		' description sample_spec owner_module latency driver monitor_source'
-		' monitor_source_name flags configured_latency' )
+		' description sample_spec owner_module latency driver'
+		' monitor_source monitor_source_name flags configured_latency' )
 
 	def __str__(self):
 		return self._as_str(self.volume, fields='index name description mute')
@@ -358,7 +358,6 @@ class Pulse(object):
 			func.__name__ = '...'
 			func.__doc__ = 'Signature: func({})'.format(
 				'' if pulse_func.__name__.endswith('_list') else 'index' )
-			return func
 		def _decorator_or_method(func_or_self=None, index=None):
 			if func_or_self.__class__.__name__ == 'Pulse':
 				return _wrapper(func_or_self, index)

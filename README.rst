@@ -100,10 +100,10 @@ Some less obvious things are described in this section.
 Volume
 ``````
 
-All volume values in this module are float objects in 0-65536.0 range, with
+All volume values in this module are float objects in 0-65536 range, with
 following meaning:
 
-* 0.0 volume there is "no sound".
+* 0.0 volume is "no sound".
 
 * 1.0 value is "current sink volume level", 100% or PA_VOLUME_NORM.
 
@@ -121,17 +121,17 @@ volume of the "loudest" application, so already does what's suggested above.
 See ``src/pulse/volume.h`` in pulseaudio sources for all the gory details.
 
 
-Event-handling code and threads
-```````````````````````````````
+Event-handling code, threads
+````````````````````````````
 
 libpulse clients always work as an event loop, though this module kinda hides
 it, presenting a more conventional blocking interface.
 
 So what happens on any call (e.g. ``pulse.mute(...)``) is:
 
-* Send command to libpulse, specifying callback for when its done.
+* Make a call to libpulse, specifying callback for when operation will be completed.
 * Run libpulse event loop until that callback gets called.
-* Return result of that callback.
+* Return result passed to that callback call.
 
 ``event_callback_set()`` and ``event_listen()`` calls essentally do raw first
 and second step here.
@@ -143,15 +143,22 @@ matter) waits for return value and runs libpulse loop already.
 One can raise PulseLoopStop exception there to make ``event_listen()`` return,
 run whatever pulse calls after that, then re-start the ``event_listen()`` thing.
 
-This will not miss any events, as all calls do same thing as ``event_listen()``
-does (second step above), and can cause callable passed to
-``event_callback_set()`` to fire.
+This will not miss any events, as all blocking calls do same thing as
+``event_listen()`` does (second step above), and can cause callable passed to
+``event_callback_set()`` to be called (when loop is running).
 
 Also, same instance of libpulse eventloop can't be run from different threads,
 naturally, so if threads are used, client can be initialized with
 ``threading_lock=True`` option (can also accept lock instance instead of True)
-to create a mutex around step-2 (run event loop) from the list above, so two
-threads won't try to do it at the same time.
+to create a mutex around step-2 (run event loop) from the list above, so
+multiple threads won't do it at the same time.
+
+For proper eventloop integration (think twisted or asyncio), ``_pulse_get_list``
+/ ``_pulse_method_call`` wrappers should be overidden to not run pulse loop, but
+rather return "future" object and register a set of fd's (as passed to
+``set_poll_func`` callback) with eventloop.
+Never needed that, so not implemented in the module, but should be rather easy
+to implement on top of it, as described.
 
 
 
