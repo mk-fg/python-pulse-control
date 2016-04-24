@@ -22,6 +22,7 @@ def str_decode(s): return s if not isinstance(s, decodable) else s.decode()
 
 
 class PulseError(Exception): pass
+class PulseOperationInvalid(PulseError): pass
 class PulseOperationFailed(PulseError): pass
 class PulseIndexError(PulseError): pass
 
@@ -407,7 +408,8 @@ class Pulse(object):
 			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
 			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
 			with self._pulse_op_cb() as cb:
-				method(self._ctx, index, *(list(pulse_call) + [cb, None]))
+				try: method(self._ctx, index, *(list(pulse_call) + [cb, None]))
+				except c.pa.CallError as err: raise PulseOperationInvalid(err)
 		func_args = list(inspect.getargspec(func))
 		func_args[0] = ['index'] + list(func_args[0])
 		_wrapper.__name__ = '...'
