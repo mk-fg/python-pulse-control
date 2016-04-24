@@ -91,8 +91,8 @@ code.
 
 
 
-Concepts
---------
+Notes
+-----
 
 Some less obvious things are described in this section.
 
@@ -134,7 +134,7 @@ So what happens on any call (e.g. ``pulse.mute(...)``) is:
 
 * Make a call to libpulse, specifying callback for when operation will be completed.
 * Run libpulse event loop until that callback gets called.
-* Return result passed to that callback call.
+* Return result passed to that callback call, if any (for various "get" methods).
 
 ``event_callback_set()`` and ``event_listen()`` calls essentally do raw first
 and second step here.
