@@ -22,8 +22,8 @@ def str_decode(s): return s if not isinstance(s, decodable) else s.decode()
 
 
 class PulseError(Exception): pass
-class PulseOperationInvalid(PulseError): pass
 class PulseOperationFailed(PulseError): pass
+class PulseOperationInvalid(PulseOperationFailed): pass
 class PulseIndexError(PulseError): pass
 
 class PulseLoopStop(Exception): pass
