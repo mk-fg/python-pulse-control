@@ -111,14 +111,16 @@ following meaning:
   sound volume (higher values will negatively affect sound quality).
 
 Probably a good idea to set volume only in 0-1.0 range and boost volume in
-hardware without any quality loss, e.g. by tweaking sink volume (which
-corresponds to ALSA/hardware volume), if that option is available.
+hardware without quality loss, e.g. by tweaking sink volume (which corresponds
+to ALSA/hardware volume), if that option is available.
 
 Note that ``flat-volumes=yes`` option ("yes" by default on some distros, "no" in
 e.g. Arch Linux) in pulseaudio daemon.conf already scales device-volume with the
 volume of the "loudest" application, so already does what's suggested above.
 
-See ``src/pulse/volume.h`` in pulseaudio sources for all the gory details.
+Fractional volume values used in the module get translated to/from pa_volume_t
+integers for libpulse. See ``src/pulse/volume.h`` in pulseaudio sources for all
+the gory details on the latter.
 
 
 Event-handling code, threads
