@@ -262,9 +262,10 @@ class Pulse(object):
 
 	def _pulse_subscribe_cb(self, ctx, ev, idx, userdata):
 		if not self.event_callback: return
-		ev_fac = self._pa_subscribe_ev_fac[
-			ev & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK ]
-		ev_t = self._pa_subscribe_ev_t[ev & c.PA_SUBSCRIPTION_EVENT_TYPE_MASK]
+		n = ev & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK
+		ev_fac = self._pa_subscribe_ev_fac.get(n) or 'ev.facility.{}'.format(n)
+		n = ev & c.PA_SUBSCRIPTION_EVENT_TYPE_MASK
+		ev_t = self._pa_subscribe_ev_t.get(n) or 'ev.type.{}'.format(n)
 		try: self.event_callback(PulseEventInfo(ev_t, ev_fac, idx))
 		except PulseLoopStop: self._loop_stop = True
 
