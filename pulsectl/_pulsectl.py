@@ -336,10 +336,10 @@ PA_SUBSCRIBE_CB_T = CFUNCTYPE(c_void_p,
 
 class LibPulse(object):
 
-	# func_def ::= arg_types_list | (arg_types_list, res_proc) | (res_proc, arg_types_list)
-	# res_proc ::= ctypes_restype | res_proc_func |
-	#  (ctypes_restype, res_proc_func) | res_proc_name_str
-	# res_proc_name_str := 'int_check_ge0' | 'not_null' | 'pa_op' | ...
+	# func_def ::= arg_types_list | (arg_types_list, res_spec) | (res_spec, arg_types_list)
+	# res_spec ::= ctypes_restype | res_proc_func |
+	#  (ctypes_restype, res_proc_func) | res_spec_name_str
+	# res_spec_name_str ::= 'int_check_ge0' | 'pa_op' | ...
 	func_defs = dict(
 		pa_strerror=([c_int], c_str_p),
 		pa_mainloop_new=(POINTER(PA_MAINLOOP)),
@@ -453,28 +453,22 @@ class LibPulse(object):
 		elif isinstance(res_proc, str):
 			if res_proc.startswith('int_check_'): func.restype = c_int
 			elif res_proc == 'pa_op': func.restype = POINTER(PA_OPERATION)
+			else: raise ValueError(res_proc)
 		else: func.restype, res_proc = res_proc, None
 
 		def _wrapper(*args):
 			# print('libpulse call:', func_name, args, file=sys.stderr, flush=True)
 			res = func(*args)
 			if isinstance(res_proc, str):
-				if res_proc == 'int_check_ge0':
-					if res < 0:
-						err = [func_name, args]
-						if args and isinstance(args[0].contents, PA_CONTEXT):
-							errno_ = self.context_errno(args[0])
-							err.append(self.strerror(errno_))
-						raise self.CallError(*err)
-				elif res_proc in ['not_null', 'pa_op']:
-					if not res:
-						err = [func_name, args]
-						if res_proc == 'pa_op' and args and isinstance(args[0].contents, PA_CONTEXT):
-							errno_ = self.context_errno(args[0])
-							err.append(self.strerror(errno_))
-						else: err.append('Incorrect PA operation parameters')
-						raise self.CallError(*err)
-				else: raise ValueError(res_proc)
+				assert res_proc in ['int_check_ge0', 'pa_op']
+				if (res_proc == 'int_check_ge0' and res < 0)\
+						or (res_proc == 'pa_op' and not res):
+					err = [func_name, args, res]
+					if args and isinstance(args[0].contents, PA_CONTEXT):
+						errno_ = self.context_errno(args[0])
+						err.append(self.strerror(errno_))
+					else: err.append('Return value check failed: {}'.format(res_proc))
+					raise self.CallError(*err)
 			elif res_proc: res = res_proc(res)
 			return res
 
