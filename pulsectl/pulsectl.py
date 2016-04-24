@@ -472,6 +472,8 @@ class Pulse(object):
 
 	def volume_set(self, obj, vol):
 		assert isinstance(obj, PulseObject), [type(obj), obj]
+		obj.volume.values = [v if v > 0.0 else 0.0 for v in obj.volume.values]
+		obj.volume.values = [v if v < 1.0 else 1.0 for v in obj.volume.values]
 		method = {
 			PulseSinkInfo: self.sink_volume_set,
 			PulseSinkInputInfo: self.sink_input_volume_set,
