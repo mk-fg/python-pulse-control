@@ -462,14 +462,18 @@ class LibPulse(object):
 				if res_proc == 'int_check_ge0':
 					if res < 0:
 						err = [func_name, args]
-						if args and isinstance(args[0], PA_CONTEXT):
+						if args and isinstance(args[0].contents, PA_CONTEXT):
 							errno_ = self.context_errno(args[0])
 							err.append(self.strerror(errno_))
 						raise self.CallError(*err)
 				elif res_proc in ['not_null', 'pa_op']:
 					if not res:
-						raise self.CallError( func_name, args,
-							'Null pointer returned' if not 'pa_op' else 'Incorrect PA operation parameters' )
+						err = [func_name, args]
+						if res_proc == 'pa_op' and args and isinstance(args[0].contents, PA_CONTEXT):
+							errno_ = self.context_errno(args[0])
+							err.append(self.strerror(errno_))
+						else: err.append('Incorrect PA operation parameters')
+						raise self.CallError(*err)
 				else: raise ValueError(res_proc)
 			elif res_proc: res = res_proc(res)
 			return res

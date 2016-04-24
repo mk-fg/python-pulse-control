@@ -409,7 +409,7 @@ class Pulse(object):
 			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
 			with self._pulse_op_cb() as cb:
 				try: method(self._ctx, index, *(list(pulse_call) + [cb, None]))
-				except c.pa.CallError as err: raise PulseOperationInvalid(err)
+				except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
 		func_args = list(inspect.getargspec(func))
 		func_args[0] = ['index'] + list(func_args[0])
 		_wrapper.__name__ = '...'
