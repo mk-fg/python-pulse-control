@@ -103,7 +103,7 @@ Volume
 All volume values in this module are float objects in 0-65536 range, with
 following meaning:
 
-* 0.0 volume is "no sound".
+* 0.0 volume is "no sound" or PA_VOLUME_MUTED.
 
 * 1.0 value is "current sink volume level", 100% or PA_VOLUME_NORM.
 
@@ -118,9 +118,10 @@ Note that ``flat-volumes=yes`` option ("yes" by default on some distros, "no" in
 e.g. Arch Linux) in pulseaudio daemon.conf already scales device-volume with the
 volume of the "loudest" application, so already does what's suggested above.
 
-Fractional volume values used in the module get translated to/from pa_volume_t
-integers for libpulse. See ``src/pulse/volume.h`` in pulseaudio sources for all
-the gory details on the latter.
+Fractional volume values used in the module get translated (in a linear fashion)
+to/from pa_volume_t integers for libpulse. See ``src/pulse/volume.h`` in
+pulseaudio sources for all the gory details on the latter (e.g. how it relates
+to sound level in dB).
 
 
 Event-handling code, threads

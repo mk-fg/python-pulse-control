@@ -94,6 +94,7 @@ class PA_MAINLOOP_API(Structure): pass
 class PA_CONTEXT(Structure): pass
 class PA_PROPLIST(Structure): pass
 class PA_OPERATION(Structure): pass
+class PA_SIGNAL_EVENT(Structure): pass
 class PA_IO_EVENT(Structure): pass
 
 
@@ -335,6 +336,10 @@ PA_SUBSCRIBE_CB_T = CFUNCTYPE(c_void_p,
 
 class LibPulse(object):
 
+	# func_def ::= arg_types_list | (arg_types_list, res_proc) | (res_proc, arg_types_list)
+	# res_proc ::= ctypes_restype | res_proc_func |
+	#  (ctypes_restype, res_proc_func) | res_proc_name_str
+	# res_proc_name_str := 'int_check_ge0' | 'not_null' | 'pa_op' | ...
 	func_defs = dict(
 		pa_strerror=([c_int], c_str_p),
 		pa_mainloop_new=(POINTER(PA_MAINLOOP)),
@@ -349,7 +354,7 @@ class LibPulse(object):
 		pa_mainloop_quit=([POINTER(PA_MAINLOOP), c_int]),
 		pa_mainloop_free=[POINTER(PA_MAINLOOP)],
 		pa_signal_init=([POINTER(PA_MAINLOOP_API)], 'int_check_ge0'),
-		pa_signal_new=([c_int, PA_SIGNAL_CB_T, POINTER(c_int)]),
+		pa_signal_new=([c_int, PA_SIGNAL_CB_T, POINTER(PA_SIGNAL_EVENT)]),
 		pa_signal_done=None,
 		pa_context_errno=([POINTER(PA_CONTEXT)], c_int),
 		pa_context_new=([POINTER(PA_MAINLOOP_API), c_str_p], POINTER(PA_CONTEXT)),
@@ -357,97 +362,67 @@ class LibPulse(object):
 		pa_context_connect=([POINTER(PA_CONTEXT), c_str_p, c_int, POINTER(c_int)], 'int_check_ge0'),
 		pa_context_get_state=([POINTER(PA_CONTEXT)], c_int),
 		pa_context_disconnect=[POINTER(PA_CONTEXT)],
-		pa_context_drain=(
-			[POINTER(PA_CONTEXT), PA_CONTEXT_DRAIN_CB_T, c_void_p],
-			POINTER(PA_OPERATION) ),
-		pa_context_get_sink_input_info_list=(
-			[POINTER(PA_CONTEXT), PA_SINK_INPUT_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_sink_input_info=(
-			[POINTER(PA_CONTEXT), c_uint32, PA_SINK_INPUT_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_sink_info_list=(
-			[POINTER(PA_CONTEXT), PA_SINK_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_sink_info_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, PA_SINK_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_sink_mute_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_suspend_sink_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_sink_port_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_sink_input_mute=(
-			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_sink_volume_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_sink_input_volume=(
-			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_move_sink_input_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_source_output_info=(
-			[POINTER(PA_CONTEXT), c_uint32, PA_SOURCE_OUTPUT_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_source_output_info_list=(
-			[POINTER(PA_CONTEXT), PA_SOURCE_OUTPUT_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_move_source_output_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_source_output_volume=(
-			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_source_output_mute=(
-			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_kill_source_output=(
-			[POINTER(PA_CONTEXT), c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_source_info_list=(
-			[POINTER(PA_CONTEXT), PA_SOURCE_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_source_info_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, PA_SOURCE_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_source_volume_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_source_mute_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_suspend_source_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_set_source_port_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_client_info_list=(
-			[POINTER(PA_CONTEXT), PA_CLIENT_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
-		pa_context_get_client_info=(
-			[POINTER(PA_CONTEXT), c_uint32, PA_CLIENT_INFO_CB_T, c_void_p],
-			POINTER(c_int) ),
+		pa_context_drain=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_CONTEXT_DRAIN_CB_T, c_void_p] ),
+		pa_context_get_sink_input_info_list=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_SINK_INPUT_INFO_CB_T, c_void_p] ),
+		pa_context_get_sink_input_info=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_SINK_INPUT_INFO_CB_T, c_void_p] ),
+		pa_context_get_sink_info_list=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_SINK_INFO_CB_T, c_void_p] ),
+		pa_context_get_sink_info_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_SINK_INFO_CB_T, c_void_p] ),
+		pa_context_set_sink_mute_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_suspend_sink_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_sink_port_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_sink_input_mute=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_sink_volume_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_sink_input_volume=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_move_sink_input_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_get_source_output_info=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_SOURCE_OUTPUT_INFO_CB_T, c_void_p] ),
+		pa_context_get_source_output_info_list=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_SOURCE_OUTPUT_INFO_CB_T, c_void_p] ),
+		pa_context_move_source_output_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_source_output_volume=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_source_output_mute=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_kill_source_output=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_get_source_info_list=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_SOURCE_INFO_CB_T, c_void_p] ),
+		pa_context_get_source_info_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_SOURCE_INFO_CB_T, c_void_p] ),
+		pa_context_set_source_volume_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, POINTER(PA_CVOLUME), PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_source_mute_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_suspend_source_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_source_port_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_get_client_info_list=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_CLIENT_INFO_CB_T, c_void_p] ),
+		pa_context_get_client_info=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_CLIENT_INFO_CB_T, c_void_p] ),
 		pa_operation_unref=([POINTER(PA_OPERATION)], c_int),
-		pa_context_get_card_info_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, PA_CARD_INFO_CB_T, c_void_p],
-			POINTER(PA_OPERATION) ),
-		pa_context_get_card_info_list=(
-			[POINTER(PA_CONTEXT), PA_CARD_INFO_CB_T, c_void_p],
-			POINTER(PA_OPERATION) ),
-		pa_context_set_card_profile_by_index=(
-			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(PA_OPERATION) ),
-		pa_context_subscribe=(
-			[POINTER(PA_CONTEXT), c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p],
-			POINTER(PA_OPERATION) ),
+		pa_context_get_card_info_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_CARD_INFO_CB_T, c_void_p] ),
+		pa_context_get_card_info_list=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_CARD_INFO_CB_T, c_void_p] ),
+		pa_context_set_card_profile_by_index=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_subscribe=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
 		pa_proplist_iterate=([POINTER(PA_PROPLIST), POINTER(c_void_p)], c_str_p),
 		pa_proplist_gets=([POINTER(PA_PROPLIST), c_str_p], c_str_p),
@@ -477,6 +452,7 @@ class LibPulse(object):
 		elif isinstance(res_proc, tuple): func.restype, res_proc = res_proc
 		elif isinstance(res_proc, str):
 			if res_proc.startswith('int_check_'): func.restype = c_int
+			elif res_proc == 'pa_op': func.restype = POINTER(PA_OPERATION)
 		else: func.restype, res_proc = res_proc, None
 
 		def _wrapper(*args):
@@ -490,8 +466,10 @@ class LibPulse(object):
 							errno_ = self.context_errno(args[0])
 							err.append(self.strerror(errno_))
 						raise self.CallError(*err)
-				elif res_proc == 'not_null':
-					if not res: raise CallError(func_name, args, 'Null pointer returned')
+				elif res_proc in ['not_null', 'pa_op']:
+					if not res:
+						raise self.CallError( func_name, args,
+							'Null pointer returned' if not 'pa_op' else 'Incorrect PA operation parameters' )
 				else: raise ValueError(res_proc)
 			elif res_proc: res = res_proc(res)
 			return res
