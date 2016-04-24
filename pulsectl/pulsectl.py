@@ -483,7 +483,7 @@ class Pulse(object):
 		self.volume_set(obj, obj.volume)
 
 	def volume_change_all_chans(self, obj, inc):
-		obj.volume.values = [v + inc for v in obj.volume.values]
+		obj.volume.values = [max(0, v + inc) for v in obj.volume.values]
 		self.volume_set(obj, obj.volume)
 
 	def volume_get_all_chans(self, obj):
