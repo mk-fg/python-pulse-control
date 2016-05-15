@@ -513,7 +513,8 @@ class Pulse(object):
 			raise_on_disconnect causes PulseDisconnected exceptions by default.
 			Do not run any pulse operations from these callbacks.'''
 		assert self.event_callback
-		self._pulse_poll(timeout)
+		try: self._pulse_poll(timeout)
+		except c.pa.CallError: pass # e.g. from mainloop_dispatch() on disconnect
 		if raise_on_disconnect and not self.connected: raise PulseDisconnected()
 
 	def event_listen_stop(self):
