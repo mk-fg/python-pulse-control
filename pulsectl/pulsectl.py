@@ -324,14 +324,10 @@ class Pulse(object):
 			ts_deadline = timeout and (ts + timeout)
 			while True:
 				delay = max(0, int((ts_deadline - ts) * 1000000)) if ts_deadline else -1
-				try:
-					c.pa.mainloop_prepare(loop, delay) # usec
-					c.pa.mainloop_poll(loop)
-					if not self._loop: break # poll() interrupted by close() or such
-					c.pa.mainloop_dispatch(loop)
-				except c.pa.CallError as err:
-					if err.args[1] == -2: break # indicates stopped loop
-					raise
+				c.pa.mainloop_prepare(loop, delay) # usec
+				c.pa.mainloop_poll(loop)
+				if not self._loop: break # poll() interrupted by close() or such
+				c.pa.mainloop_dispatch(loop)
 				if self._loop_stop: break
 				ts = c.mono_time()
 				if ts_deadline and ts >= ts_deadline: break
