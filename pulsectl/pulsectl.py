@@ -198,7 +198,7 @@ class Pulse(object):
 		self._pa_subscribe_cb = c.PA_SUBSCRIBE_CB_T(self._pulse_subscribe_cb)
 
 		self._loop, self._loop_lock = c.pa.mainloop_new(), None
-		self._loop_running = self._loop_close = False
+		self._loop_running = self._loop_closed = False
 		self._api = c.pa.mainloop_get_api(self._loop)
 
 		self._ctx, self._ret = c.pa.context_new(self._api, self.name), c.pa.return_value()
@@ -226,6 +226,9 @@ class Pulse(object):
 		'''Connect to pulseaudio server.
 			"autospawn" option will start new pulse daemon, if necessary.
 			Specifying "wait" option will make function block until pulseaudio server appears.'''
+		if self._loop_closed:
+			raise PulseError('Eventloop object was already'
+				' destroyed and cannot be reused from this instance.')
 		flags, self.connected = 0, None
 		if not autospawn: flags |= c.PA_CONTEXT_NOAUTOSPAWN
 		if wait: flags |= c.PA_CONTEXT_NOFAIL
@@ -241,8 +244,8 @@ class Pulse(object):
 	def close(self):
 		if self._loop:
 			if self._loop_running:
+				self._loop_closed = True
 				c.pa.mainloop_quit(self._loop, 0)
-				self._loop_close = True
 				return
 			try:
 				self.disconnect()
@@ -294,7 +297,7 @@ class Pulse(object):
 			try: yield self._loop
 			finally:
 				self._loop_running = False
-				if self._loop_close: self.close()
+				if self._loop_closed: self.close() # to free() after stopping it
 		finally:
 			if self._loop_lock: self._loop_lock.release()
 
@@ -326,7 +329,7 @@ class Pulse(object):
 				delay = max(0, int((ts_deadline - ts) * 1000000)) if ts_deadline else -1
 				c.pa.mainloop_prepare(loop, delay) # usec
 				c.pa.mainloop_poll(loop)
-				if not self._loop: break # poll() interrupted by close() or such
+				if self._loop_closed: break # interrupted by close() or such
 				c.pa.mainloop_dispatch(loop)
 				if self._loop_stop: break
 				ts = c.mono_time()
