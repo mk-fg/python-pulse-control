@@ -63,6 +63,10 @@ class PulseObject(object):
 				s = str_decode(s.value.strip().split(b','))
 				self.channel_count = struct.channel_map.channels
 				self.channel_list = s if len(s) == self.channel_count else None
+			if hasattr(struct, 'state'):
+				# state seems to have two values; 0 for running, 1 for idle
+				self.idle = struct.state == 1
+				self.running = struct.state == 0
 
 	def _copy_struct_fields(self, struct, fields=None):
 		if not fields: fields = self.c_struct_fields
@@ -102,7 +106,7 @@ class PulseClientInfo(PulseObject):
 	c_struct_fields = 'name index driver owner_module'
 
 class PulseSinkInfo(PulseObject):
-	c_struct_fields = ( 'index name mute'
+	c_struct_fields = ( 'index name mute state'
 		' description sample_spec owner_module latency driver'
 		' monitor_source monitor_source_name flags configured_latency' )
 
@@ -118,7 +122,7 @@ class PulseSinkInputInfo(PulseObject):
 		return self._as_str(fields='index name mute')
 
 class PulseSourceInfo(PulseObject):
-	c_struct_fields = ( 'index name mute'
+	c_struct_fields = ( 'index name mute state'
 		' description sample_spec owner_module latency driver monitor_of_sink'
 		' monitor_of_sink_name flags configured_latency' )
 
