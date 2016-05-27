@@ -240,6 +240,20 @@ class PA_CLIENT_INFO(Structure):
 	]
 
 
+class PA_SERVER_INFO(Structure):
+	_fields_ = [
+		('user_name', c_char_p),
+		('host_name', c_char_p),
+		('server_version', c_char_p),
+		('server_name', c_char_p),
+		('sample_spec', PA_SAMPLE_SPEC),
+		('default_sink_name', c_char_p),
+		('default_source_name', c_char_p),
+		('cookie', c_uint32),
+		('channel_map', PA_CHANNEL_MAP),
+	]
+
+
 class PA_CARD_PROFILE_INFO(Structure):
 	_fields_ = [
 		('name', c_char_p),
@@ -291,6 +305,11 @@ PA_CLIENT_INFO_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_CONTEXT),
 	POINTER(PA_CLIENT_INFO),
 	c_int,
+	c_void_p)
+
+PA_SERVER_INFO_CB_T = CFUNCTYPE(c_void_p,
+	POINTER(PA_CONTEXT),
+	POINTER(PA_SERVER_INFO),
 	c_void_p)
 
 PA_SINK_INPUT_INFO_CB_T = CFUNCTYPE(c_int,
@@ -421,6 +440,8 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), PA_CLIENT_INFO_CB_T, c_void_p] ),
 		pa_context_get_client_info=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_uint32, PA_CLIENT_INFO_CB_T, c_void_p] ),
+		pa_context_get_server_info=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_SERVER_INFO_CB_T, c_void_p] ),
 		pa_operation_unref=([POINTER(PA_OPERATION)], c_int),
 		pa_context_get_card_info_by_index=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_uint32, PA_CARD_INFO_CB_T, c_void_p] ),

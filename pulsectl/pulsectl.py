@@ -104,6 +104,10 @@ class PulseCardInfo(PulseObject):
 class PulseClientInfo(PulseObject):
 	c_struct_fields = 'name index driver owner_module'
 
+class PulseServerInfo(PulseObject):
+	c_struct_fields = ( 'user_name host_name'
+		' server_version server_name default_sink_name default_source_name cookie' )
+
 class PulseSinkInfo(PulseObject):
 	c_struct_fields = ( 'index name mute'
 		' description sample_spec owner_module latency driver'
@@ -340,20 +344,20 @@ class Pulse(object):
 
 
 	def _pulse_info_cb(self, info_cls, data_list, done_cb, ctx, info, eof, userdata):
-		if eof:
-			done_cb()
-			return 0
-		data_list.append(info_cls(info[0]))
+		if eof: done_cb()
+		else: data_list.append(info_cls(info[0]))
 		return 0
 
-	def _pulse_get_list(cb_t, pulse_func, info_cls):
+	def _pulse_get_list(cb_t, pulse_func, info_cls, singleton=False):
 		def _wrapper(self, index=None):
 			data = list()
 			with self._pulse_op_cb(raw=True) as cb:
-				cb = cb_t(ft.partial(self._pulse_info_cb, info_cls, data, cb))
+				cb = cb_t(
+					ft.partial(self._pulse_info_cb, info_cls, data, cb) if not singleton else
+					lambda ctx, info, userdata, cb=cb: data.append(info_cls(info[0])) or cb() )
 				pulse_func(self._ctx, *([index, cb, None] if index is not None else [cb, None]))
 			data = data or list()
-			if index is not None:
+			if index is not None or singleton:
 				if not data: raise PulseIndexError(index)
 				data, = data
 			return _wrapper.func(self, data) if _wrapper.func else data
@@ -361,7 +365,7 @@ class Pulse(object):
 		def _add_wrap_doc(func):
 			func.__name__ = '...'
 			func.__doc__ = 'Signature: func({})'.format(
-				'' if pulse_func.__name__.endswith('_list') else 'index' )
+				'' if pulse_func.__name__.endswith('_list') or singleton else 'index' )
 		def _decorator_or_method(func_or_self=None, index=None):
 			if func_or_self.__class__.__name__ == 'Pulse':
 				return _wrapper(func_or_self, index)
@@ -401,6 +405,8 @@ class Pulse(object):
 		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info_list, PulseClientInfo )
 	client_info = _pulse_get_list(
 		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info, PulseClientInfo )
+	server_info = _pulse_get_list(
+		c.PA_SERVER_INFO_CB_T, c.pa.context_get_server_info, PulseServerInfo, singleton=True )
 
 	def _pulse_method_call(method_or_func, func=None):
 		if func is None: func_method, func = None, method_or_func
