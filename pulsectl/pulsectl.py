@@ -550,7 +550,7 @@ class Pulse(object):
 			Connection retries are only made when
 				pulseaudio server can be signaled to load module-cli.
 			PulseError is raised on any failure.'''
-		import socket, signal, time
+		import socket, errno, signal, time
 		s = None
 		try:
 			p_cli, p_pid = map(c.pa.runtime_path, ['cli', 'pid'])
