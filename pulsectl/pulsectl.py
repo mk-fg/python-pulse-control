@@ -64,9 +64,8 @@ class PulseObject(object):
 				self.channel_count = struct.channel_map.channels
 				self.channel_list = s if len(s) == self.channel_count else None
 			if hasattr(struct, 'state'):
-				# state seems to have two values; 0 for running, 1 for idle
-				self.idle = struct.state == 1
-				self.running = struct.state == 0
+				self.state = c.PA_OBJ_STATE_MAP.get(struct.state, 'unknown')
+				self.state_values = sorted(c.PA_OBJ_STATE_MAP.values())
 
 	def _copy_struct_fields(self, struct, fields=None):
 		if not fields: fields = self.c_struct_fields

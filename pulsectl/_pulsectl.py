@@ -87,6 +87,11 @@ PA_SUBSCRIPTION_EVENT_CHANGE = 0x0010
 PA_SUBSCRIPTION_EVENT_REMOVE = 0x0020
 PA_SUBSCRIPTION_EVENT_TYPE_MASK = 0x0030
 
+# These are defined separately as
+#  pa_sink_state / pa_source_state, but seem to match.
+PA_OBJ_STATE_MAP = dict( (v,k)
+	for k,v in dict(invalid=-1, running=0, idle=1, suspended=2).items() )
+
 
 class PA_MAINLOOP(Structure): pass
 class PA_STREAM(Structure): pass
