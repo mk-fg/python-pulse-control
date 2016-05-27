@@ -108,6 +108,9 @@ class PulseServerInfo(PulseObject):
 	c_struct_fields = ( 'user_name host_name'
 		' server_version server_name default_sink_name default_source_name cookie' )
 
+class PulseModuleInfo(PulseObject):
+	c_struct_fields = 'index name argument n_used auto_unload'
+
 class PulseSinkInfo(PulseObject):
 	c_struct_fields = ( 'index name mute'
 		' description sample_spec owner_module latency driver'
@@ -407,18 +410,23 @@ class Pulse(object):
 		c.PA_CLIENT_INFO_CB_T, c.pa.context_get_client_info, PulseClientInfo )
 	server_info = _pulse_get_list(
 		c.PA_SERVER_INFO_CB_T, c.pa.context_get_server_info, PulseServerInfo, singleton=True )
+	module_info = _pulse_get_list(
+		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info, PulseModuleInfo )
+	module_info_list = _pulse_get_list(
+		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info_list, PulseModuleInfo )
 
-	def _pulse_method_call(method_or_func, func=None):
-		if func is None: func_method, func = None, method_or_func
+
+	def _pulse_method_call(method_or_func, func=False):
+		if func is False: func_method, func = None, method_or_func
 		else: func_method = method_or_func
 		def _wrapper(self, index, *args, **kws):
-			method, pulse_call = func_method, func(*args, **kws)
+			method, pulse_call = func_method, func(*args, **kws) if func else list()
 			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
 			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
 			with self._pulse_op_cb() as cb:
 				try: method(self._ctx, index, *(list(pulse_call) + [cb, None]))
 				except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
-		func_args = list(inspect.getargspec(func))
+		func_args = list(inspect.getargspec(func or (lambda: None)))
 		func_args[0] = ['index'] + list(func_args[0])
 		_wrapper.__name__ = '...'
 		_wrapper.__doc__ = 'Signature: func' + inspect.formatargspec(*func_args)
@@ -456,6 +464,21 @@ class Pulse(object):
 	source_port_set = _pulse_method_call(
 		c.pa.context_set_source_port_by_index,
 		lambda port: port.name if isinstance(port, PulsePortInfo) else port )
+
+
+	def module_load(self, name, args):
+		if isinstance(args, (tuple, list)): args = ' '.join(args)
+		name, args = map(c.force_bytes, [name, args])
+		data = list()
+		with self._pulse_op_cb(raw=True) as cb:
+			cb = c.PA_CONTEXT_INDEX_CB_T(
+				lambda ctx, index, userdata, cb=cb: data.append(index) or cb() )
+			try: c.pa.context_load_module(self._ctx, name, args, cb, None)
+			except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
+		index, = data
+		return index
+
+	module_unload = _pulse_method_call(c.pa.context_unload_module, None)
 
 
 	def mute(self, obj, mute=True):

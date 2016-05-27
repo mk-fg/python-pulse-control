@@ -6,14 +6,15 @@ import os, sys, functools as ft
 from ctypes import *
 
 
+def force_str(s): return s.decode('utf-8') if isinstance(s, bytes) else s
+def force_bytes(s): return s.encode('utf-8') if isinstance(s, unicode) else s
+
 if sys.version_info.major >= 3:
-	def force_str(s): return s.decode('utf-8') if isinstance(s, bytes) else s
-	def force_bytes(s): return s.encode('utf-8') if isinstance(s, str) else s
 	class c_str_p_type(object):
 		c_type = c_char_p
 		def __call__(self, val): return force_str(val)
 		def from_param(self, val): return force_bytes(val)
-	c_str_p = c_str_p_type()
+	unicode, c_str_p = str, c_str_p_type()
 
 	import time
 	mono_time = time.monotonic
@@ -277,6 +278,17 @@ class PA_CARD_INFO(Structure):
 	]
 
 
+class PA_MODULE_INFO(Structure):
+	_fields_ = [
+		('index', c_uint32),
+		('name', c_char_p),
+		('argument', c_char_p),
+		('n_used', c_uint32),
+		('auto_unload', c_int),
+		('proplist', POINTER(PA_PROPLIST)),
+	]
+
+
 class POLLFD(Structure):
 	_fields_ = [
 		('fd', c_int),
@@ -340,6 +352,11 @@ PA_CONTEXT_DRAIN_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_CONTEXT),
 	c_void_p)
 
+PA_CONTEXT_INDEX_CB_T = CFUNCTYPE(c_void_p,
+	POINTER(PA_CONTEXT),
+	c_uint32,
+	c_void_p)
+
 PA_CONTEXT_SUCCESS_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_CONTEXT),
 	c_int,
@@ -348,6 +365,12 @@ PA_CONTEXT_SUCCESS_CB_T = CFUNCTYPE(c_void_p,
 PA_CARD_INFO_CB_T = CFUNCTYPE(None,
 	POINTER(PA_CONTEXT),
 	POINTER(PA_CARD_INFO),
+	c_int,
+	c_void_p)
+
+PA_MODULE_INFO_CB_T = CFUNCTYPE(None,
+	POINTER(PA_CONTEXT),
+	POINTER(PA_MODULE_INFO),
 	c_int,
 	c_void_p)
 
@@ -449,6 +472,14 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), PA_CARD_INFO_CB_T, c_void_p] ),
 		pa_context_set_card_profile_by_index=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_uint32, c_str_p, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_get_module_info=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_MODULE_INFO_CB_T, c_void_p] ),
+		pa_context_get_module_info_list=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_MODULE_INFO_CB_T, c_void_p] ),
+		pa_context_load_module=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_char_p, c_char_p, PA_CONTEXT_INDEX_CB_T, c_void_p] ),
+		pa_context_unload_module=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_subscribe=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
