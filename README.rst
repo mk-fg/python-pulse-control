@@ -97,6 +97,20 @@ Notes
 Some less obvious things are described in this section.
 
 
+Things not yet wrapped/exposed in python
+````````````````````````````````````````
+
+There are plenty of information, methods and other things in libpulse not yet
+wrapped/exposed by this module, as they weren't needed (yet) for author/devs
+use-case(s).
+
+Making them accessible from python code can be as simple as adding an attribute
+name to the "c_struct_fields" value in PulseSomethingInfo objects.
+
+See `github #3 <https://github.com/mk-fg/python-pulse-control/issues/3>`_
+for a more concrete example of finding/adding such stuff.
+
+
 Volume
 ``````
 
