@@ -110,6 +110,14 @@ name to the "c_struct_fields" value in PulseSomethingInfo objects.
 See `github #3 <https://github.com/mk-fg/python-pulse-control/issues/3>`_
 for a more concrete example of finding/adding such stuff.
 
+For info and commands that are not available through libpulse introspection API,
+it is possible to use ``pulse.connect_to_cli()`` fallback, which will open unix
+socket to server's "module-cli" (signaling to load it, if necessary), which can
+be used in exactly same way as "pacmd" tool or pulseaudio startup files
+(e.g. "default.pa").
+Probably a bad idea to parse string output from commands there though, as these
+are not only subject to change, but can also vary depending on system locale.
+
 
 Volume
 ``````

@@ -342,11 +342,13 @@ PA_SUBSCRIBE_CB_T = CFUNCTYPE(c_void_p,
 class LibPulse(object):
 
 	# func_def ::= arg_types_list | (arg_types_list, res_spec) | (res_spec, arg_types_list)
-	# res_spec ::= ctypes_restype | res_proc_func |
-	#  (ctypes_restype, res_proc_func) | res_spec_name_str
+	# res_spec ::= ctypes_restype
+	#  | res_proc_func | (ctypes_restype, res_proc_func)
+	#  | res_spec_name_str | (ctypes_restype, res_spec_name_str)
 	# res_spec_name_str ::= 'int_check_ge0' | 'pa_op' | ...
 	func_defs = dict(
 		pa_strerror=([c_int], c_str_p),
+		pa_runtime_path=([c_str_p], (c_char_p, 'not_null')),
 		pa_mainloop_new=(POINTER(PA_MAINLOOP)),
 		pa_mainloop_get_api=([POINTER(PA_MAINLOOP)], POINTER(PA_MAINLOOP_API)),
 		pa_mainloop_run=([POINTER(PA_MAINLOOP), POINTER(c_int)], c_int),
@@ -453,21 +455,21 @@ class LibPulse(object):
 
 	def _func_wrapper(self, func_name, func, args=list(), res_proc=None):
 		func.restype, func.argtypes = None, args
-		if hasattr(res_proc, 'c_type'): func.restype = res_proc.c_type
-		elif isinstance(res_proc, tuple): func.restype, res_proc = res_proc
-		elif isinstance(res_proc, str):
+		if isinstance(res_proc, tuple): func.restype, res_proc = res_proc
+		if isinstance(res_proc, str):
 			if res_proc.startswith('int_check_'): func.restype = c_int
 			elif res_proc == 'pa_op': func.restype = POINTER(PA_OPERATION)
-			else: raise ValueError(res_proc)
-		else: func.restype, res_proc = res_proc, None
+		elif not func.restype and hasattr(res_proc, 'c_type'): func.restype = res_proc.c_type
+		elif not func.restype: func.restype, res_proc = res_proc, None
 
 		def _wrapper(*args):
 			# print('libpulse call:', func_name, args, file=sys.stderr, flush=True)
 			res = func(*args)
 			if isinstance(res_proc, str):
-				assert res_proc in ['int_check_ge0', 'pa_op']
+				assert res_proc in ['int_check_ge0', 'pa_op', 'not_null']
 				if (res_proc == 'int_check_ge0' and res < 0)\
-						or (res_proc == 'pa_op' and not res):
+						or (res_proc == 'pa_op' and not res)\
+						or (res_proc == 'not_null' and not res):
 					err = [func_name, args, res]
 					if args and isinstance(args[0].contents, PA_CONTEXT):
 						errno_ = self.context_errno(args[0])
