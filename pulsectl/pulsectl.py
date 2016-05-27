@@ -105,7 +105,7 @@ class PulseClientInfo(PulseObject):
 	c_struct_fields = 'name index driver owner_module'
 
 class PulseSinkInfo(PulseObject):
-	c_struct_fields = ( 'index name mute state'
+	c_struct_fields = ( 'index name mute'
 		' description sample_spec owner_module latency driver'
 		' monitor_source monitor_source_name flags configured_latency' )
 
@@ -121,7 +121,7 @@ class PulseSinkInputInfo(PulseObject):
 		return self._as_str(fields='index name mute')
 
 class PulseSourceInfo(PulseObject):
-	c_struct_fields = ( 'index name mute state'
+	c_struct_fields = ( 'index name mute'
 		' description sample_spec owner_module latency driver monitor_of_sink'
 		' monitor_of_sink_name flags configured_latency' )
 
