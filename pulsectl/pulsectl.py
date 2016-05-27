@@ -4,7 +4,7 @@ from __future__ import print_function
 import itertools as it, operator as op, functools as ft
 from collections import defaultdict
 from contextlib import contextmanager
-import sys, inspect, traceback
+import os, sys, inspect, traceback
 
 from . import _pulsectl as c
 
@@ -550,7 +550,7 @@ class Pulse(object):
 			Connection retries are only made when
 				pulseaudio server can be signaled to load module-cli.
 			PulseError is raised on any failure.'''
-		import socket
+		import socket, signal, time
 		s = None
 		try:
 			p_cli, p_pid = map(c.pa.runtime_path, ['cli', 'pid'])
