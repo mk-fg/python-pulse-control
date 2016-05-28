@@ -412,7 +412,7 @@ class Pulse(object):
 		c.PA_SERVER_INFO_CB_T, c.pa.context_get_server_info, PulseServerInfo, singleton=True )
 	module_info = _pulse_get_list(
 		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info, PulseModuleInfo )
-	module_info_list = _pulse_get_list(
+	module_list = _pulse_get_list(
 		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info_list, PulseModuleInfo )
 
 
@@ -578,6 +578,7 @@ class Pulse(object):
 				"### EOF" or timeout for commands that have output (e.g. "dump\n").
 			Connection retries are only made when
 				pulseaudio server can be signaled to load module-cli.
+			Can be used when client is not connected via regular API.
 			PulseError is raised on any failure.'''
 		import socket, errno, signal, time
 		s = None
