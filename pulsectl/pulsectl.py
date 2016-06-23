@@ -568,34 +568,59 @@ class Pulse(object):
 		self._pa_poll_cb = c.PA_POLL_FUNC_T(ft.partial(self._pulse_poll_cb, func, func_err_handler))
 		c.pa.mainloop_set_poll_func(self._loop, self._pa_poll_cb, None)
 
-	def connect_to_cli(self, as_file=True, socket_timeout=0.2, attempts=5, retry_delay=0.3):
-		'''Returns connected CLI interface socket (as file object, unless as_file=False),
-				where one can send same commands (as lines) as to "pacmd" tool
-				or pulseaudio startup files (e.g. "default.pa").
-			Returned file object has line-buffered output,
-				so there should be no need to use flush() after every command.
-			Be sure to read from the socket line-by-line until
-				"### EOF" or timeout for commands that have output (e.g. "dump\n").
-			Connection retries are only made when
-				pulseaudio server can be signaled to load module-cli.
-			Can be used when client is not connected via regular API.
-			PulseError is raised on any failure.'''
-		import socket, errno, signal, time
-		s = None
-		try:
-			p_cli, p_pid = map(c.pa.runtime_path, ['cli', 'pid'])
-			s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-			s.settimeout(socket_timeout)
-			for n in range(attempts):
-				ts = c.mono_time()
-				try: s.connect(p_cli)
-				except socket.error as err:
-					if err.errno not in [errno.ECONNREFUSED, errno.ENOENT]: raise
-				else: break
-				with open(p_pid) as src: os.kill(int(src.read().strip()), signal.SIGUSR2)
-				time.sleep(max(0, c.mono_time() - ts))
-			else: raise PulseError('Number of connection attempts ({}) exceeded'.format(attempts))
-			return s.makefile('rw', 1) if as_file else s
-		except Exception as err: # CallError, socket.error, IOError (pidfile), OSError (os.kill)
-			if s: s.close()
-			raise PulseError('Failed to connect to pulse cli socket: {} {}'.format(type(err), err))
+
+def connect_to_cli(server=None, as_file=True, socket_timeout=0.2, attempts=5, retry_delay=0.3):
+	'''Returns connected CLI interface socket (as file object, unless as_file=False),
+			where one can send same commands (as lines) as to "pacmd" tool
+			or pulseaudio startup files (e.g. "default.pa").
+		"server" option can be specified to use non-standard unix socket path
+			(when passed absolute path string) or remote tcp socket,
+			when passed IP address (to use default port) or (address, port) tuple.
+		Returned file object has line-buffered output,
+			so there should be no need to use flush() after every command.
+		Be sure to read from the socket line-by-line until
+			"### EOF" or timeout for commands that have output (e.g. "dump\n").
+		If default server socket is used (i.e. not specified),
+			server pid will be signaled to load module-cli between connection attempts.
+		Completely separate protocol from the regular API, as wrapped by libpulse.
+		PulseError is raised on any failure.'''
+	import socket, errno, signal, time
+	s, n = None, attempts if attempts > 0 else None
+	try:
+		pid_path, sock_af, sock_t = None, socket.AF_UNIX, socket.SOCK_STREAM
+		if not server: server, pid_path = map(c.pa.runtime_path, ['cli', 'pid'])
+		else:
+			if not isinstance(server, tuple):
+				server = c.force_str(server)
+				if not server.startswith('/'): server = server, 4712 # default port
+			if isinstance(server, tuple):
+				try:
+					addrinfo = socket.getaddrinfo(
+						server[0], server[1], 0, sock_t, socket.IPPROTO_TCP )
+					if not addrinfo: raise socket.gaierror('No addrinfo for socket: {}'.format(server))
+				except (socket.gaierror, socket.error) as err:
+					raise PulseError( 'Failed to resolve socket parameters'
+						' (address, family) via getaddrinfo: {!r} - {} {}'.format(server, type(err), err) )
+				sock_af, sock_t, _, _, server = addrinfo[0]
+
+		s = socket.socket(sock_af, sock_t)
+		s.settimeout(socket_timeout)
+		while True:
+			ts = c.mono_time()
+			try: s.connect(server)
+			except socket.error as err:
+				if err.errno not in [errno.ECONNREFUSED, errno.ENOENT]: raise
+			else: break
+			if n:
+				n -= 1
+				if n <= 0: raise PulseError('Number of connection attempts ({}) exceeded'.format(attempts))
+			if pid_path:
+				with open(pid_path) as src: os.kill(int(src.read().strip()), signal.SIGUSR2)
+			time.sleep(max(0, c.mono_time() - ts))
+
+		return s.makefile('rw', 1) if as_file else s
+
+	except Exception as err: # CallError, socket.error, IOError (pidfile), OSError (os.kill)
+		if s: s.close()
+		raise PulseError( 'Failed to connect to pulse'
+			' cli socket {!r}: {} {}'.format(server, type(err), err) )
