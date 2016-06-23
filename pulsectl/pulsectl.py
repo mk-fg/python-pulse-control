@@ -569,13 +569,14 @@ class Pulse(object):
 		c.pa.mainloop_set_poll_func(self._loop, self._pa_poll_cb, None)
 
 
-def connect_to_cli(server=None, as_file=True, socket_timeout=0.2, attempts=5, retry_delay=0.3):
+def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, retry_delay=0.3):
 	'''Returns connected CLI interface socket (as file object, unless as_file=False),
 			where one can send same commands (as lines) as to "pacmd" tool
 			or pulseaudio startup files (e.g. "default.pa").
 		"server" option can be specified to use non-standard unix socket path
 			(when passed absolute path string) or remote tcp socket,
 			when passed IP address (to use default port) or (address, port) tuple.
+		Be sure to adjust "socket_timeout" option for tcp sockets over laggy internet.
 		Returned file object has line-buffered output,
 			so there should be no need to use flush() after every command.
 		Be sure to read from the socket line-by-line until
