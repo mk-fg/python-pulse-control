@@ -575,7 +575,7 @@ def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, re
 			or pulseaudio startup files (e.g. "default.pa").
 		"server" option can be specified to use non-standard unix socket path
 			(when passed absolute path string) or remote tcp socket,
-			when passed IP address (to use default port) or (address, port) tuple.
+			when passed remote host address (to use default port) or (host, port) tuple.
 		Be sure to adjust "socket_timeout" option for tcp sockets over laggy internet.
 		Returned file object has line-buffered output,
 			so there should be no need to use flush() after every command.
