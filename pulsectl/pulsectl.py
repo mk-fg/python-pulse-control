@@ -45,7 +45,7 @@ class PulseObject(object):
 				while True:
 					k = c.pa.proplist_iterate(struct.proplist, c.byref(state))
 					if not k: break
-					self.proplist[k] = c.pa.proplist_gets(struct.proplist, k)
+					self.proplist[c.force_str(k)] = c.force_str(c.pa.proplist_gets(struct.proplist, k))
 			if hasattr(struct, 'volume'):
 				self.volume = PulseVolumeInfo(struct.volume)
 			if hasattr(struct, 'n_ports'):
@@ -62,7 +62,7 @@ class PulseObject(object):
 				self.channel_count = struct.channel_map.channels
 				self.channel_list = s if len(s) == self.channel_count else None
 			if hasattr(struct, 'state'):
-				self.state = c.PA_OBJ_STATE_MAP.get(struct.state) or 'state.{}'.format(struct.state)
+				self.state = c.PA_OBJ_STATE_MAP.get(struct.state) or u'state.{}'.format(struct.state)
 				self.state_values = sorted(c.PA_OBJ_STATE_MAP.values())
 
 	def _copy_struct_fields(self, struct, fields=None):
@@ -215,17 +215,18 @@ class Pulse(object):
 
 		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
 		self._pa_subscribe_ev_t = dict(
-			(getattr(c, 'PA_SUBSCRIPTION_EVENT_{}'.format(k.upper())), k)
+			(getattr(c, 'PA_SUBSCRIPTION_EVENT_{}'.format(k.upper())), c.force_str(k))
 			for k in 'new change remove'.split() )
 		self._pa_subscribe_ev_fac, self._pa_subscribe_masks = dict(), dict()
 		for k, n in vars(c).items():
 			if k.startswith('PA_SUBSCRIPTION_EVENT_'):
 				if k.endswith('_MASK'): continue
-				k = k[22:].lower()
+				k = c.force_str(k[22:].lower())
 				if k in self._pa_subscribe_ev_t.values(): continue
 				assert n & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK == n, [k, n]
 				self._pa_subscribe_ev_fac[n] = k
-			elif k.startswith('PA_SUBSCRIPTION_MASK_'): self._pa_subscribe_masks[k[21:].lower()] = n
+			elif k.startswith('PA_SUBSCRIPTION_MASK_'):
+				self._pa_subscribe_masks[c.force_str(k[21:].lower())] = n
 		self.event_types = sorted(self._pa_subscribe_ev_t.values())
 		self.event_facilities = sorted(self._pa_subscribe_ev_fac.values())
 		self.event_masks = sorted(self._pa_subscribe_masks.keys())

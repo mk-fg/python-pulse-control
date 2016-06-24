@@ -90,7 +90,7 @@ PA_SUBSCRIPTION_EVENT_TYPE_MASK = 0x0030
 
 # These are defined separately as
 #  pa_sink_state / pa_source_state, but seem to match.
-PA_OBJ_STATE_MAP = dict( (v,k)
+PA_OBJ_STATE_MAP = dict( (v, force_str(k))
 	for k,v in dict(invalid=-1, running=0, idle=1, suspended=2).items() )
 
 
