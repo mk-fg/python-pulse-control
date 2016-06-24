@@ -147,6 +147,17 @@ pulseaudio sources for all the gory details on the latter (e.g. how it relates
 to sound level in dB).
 
 
+String values
+`````````````
+
+libpulse explicitly returns utf-8-encoded string values, which are always
+decoded to "abstract string" type in both python-2 (where it's called "unicode")
+and python-3 ("str"), for consistency.
+
+It might be wise to avoid mixing these with encoded strings ("bytes") in the code,
+especially in python-2, where "bytes" is often used as a default string type.
+
+
 Event-handling code, threads
 ````````````````````````````
 
