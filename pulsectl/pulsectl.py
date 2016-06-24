@@ -10,15 +10,13 @@ from . import _pulsectl as c
 
 
 if sys.version_info.major >= 3:
-	decodable = bytes
 	print_err = ft.partial(print, file=sys.stderr, flush=True)
 else:
-	range, map, decodable = xrange, it.imap, type('nx', (object,), dict())
+	range, map = xrange, it.imap
 	def print_err(*args, **kws):
 		kws.setdefault('file', sys.stderr)
 		print(*args, **kws)
 		kws['file'].flush()
-def str_decode(s): return s if not isinstance(s, decodable) else s.decode()
 
 
 class PulseError(Exception): pass
@@ -60,7 +58,7 @@ class PulseObject(object):
 			if hasattr(struct, 'channel_map'):
 				s = c.create_string_buffer(b'\0' * 512)
 				c.pa.channel_map_snprint(s, len(s), struct.channel_map)
-				s = str_decode(s.value.strip().split(b','))
+				s = list(map(c.force_str, s.value.strip().split(b',')))
 				self.channel_count = struct.channel_map.channels
 				self.channel_list = s if len(s) == self.channel_count else None
 			if hasattr(struct, 'state'):
@@ -70,11 +68,11 @@ class PulseObject(object):
 	def _copy_struct_fields(self, struct, fields=None):
 		if not fields: fields = self.c_struct_fields
 		for k in fields:
-			setattr(self, k, str_decode(
+			setattr(self, k, c.force_str(
 				getattr(struct, k) if not isinstance(struct, dict) else struct[k] ))
 
 	def _as_str(self, ext=None, fields=None, **kws):
-		kws = list(it.starmap('{}={!r}'.format, kws.items()))
+		kws = list(it.starmap('{}={}'.format, kws.items()))
 		if fields:
 			if isinstance(fields, str): fields = fields.split()
 			kws.extend('{}={!r}'.format(k, getattr(self, k)) for k in fields)
@@ -163,8 +161,9 @@ class PulseVolumeInfo(PulseObject):
 		return struct
 
 	def __str__(self):
-		return self._as_str( channels=len(self.values),
-			volumes=' / '.join('{}%'.format(int(round(v*100))) for v in self.values) )
+		return self._as_str(
+			channels=len(self.values), volumes='[{}]'.format(
+				' '.join('{}%'.format(int(round(v*100))) for v in self.values) ) )
 
 class PulseEventInfo(PulseObject):
 
