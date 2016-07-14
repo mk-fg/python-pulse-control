@@ -113,8 +113,9 @@ for a more concrete example of finding/adding such stuff.
 For info and commands that are not available through libpulse introspection API,
 it is possible to use ``pulsectl.connect_to_cli()`` fallback function, which
 will open unix socket to server's "module-cli" (signaling to load it, if
-necessary), which can be used in exactly same way as "pacmd" tool or pulseaudio
-startup files (e.g. "default.pa").
+necessary), which can be used in exactly same way as "pacmd" tool (not to be
+confused with "pactl", which uses native protocol instead of module-cli) or
+pulseaudio startup files (e.g. "default.pa").
 
 Probably a bad idea to parse string output from commands there though, as these
 are not only subject to change, but can also vary depending on system locale.
