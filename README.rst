@@ -72,6 +72,7 @@ Misc other tinkering::
    <PulseSourceInfo at 7fcb0615da10 - desc='Built-in Audio', index=1L, mute=0, name='alsa-mic', channels=2, volumes='100.0%, 100.0%'>]
 
   >>> sink = pulse.sink_list()[0]
+  >>> pulse.default(sink)
   >>> pulse.volume_change_all_chans(sink, -0.1)
   >>> pulse.volume_set_all_chans(sink, 0.5)
 

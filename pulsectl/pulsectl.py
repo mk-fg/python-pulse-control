@@ -439,6 +439,14 @@ class Pulse(object):
 		c.pa.context_set_default_source,
 		lambda source: source.name if isinstance(source, PulseSourceInfo) else source )
 
+	def default(self, obj):
+		assert isinstance(obj, PulseObject), [type(obj), obj]
+		method = {
+			PulseSinkInfo: self.sink_set_as_default,
+			PulseSourceInfo: self.source_set_as_default }.get(type(obj))
+		if not method: raise NotImplementedError(type(obj))
+		method(obj)
+
 	def _pulse_method_call(method_or_func, func=False):
 		if func is False: func_method, func = None, method_or_func
 		else: func_method = method_or_func
