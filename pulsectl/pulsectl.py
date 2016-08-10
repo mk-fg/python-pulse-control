@@ -416,6 +416,29 @@ class Pulse(object):
 		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info_list, PulseModuleInfo )
 
 
+	def _pulse_method_call_no_index(method_or_func, func=False):
+		if func is False: func_method, func = None, method_or_func
+		else: func_method = method_or_func
+		def _wrapper(self, *args, **kws):
+			method, pulse_call = func_method, func(*args, **kws) if func else list()
+			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
+			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
+			with self._pulse_op_cb() as cb:
+				try: method(self._ctx, *(list(pulse_call) + [cb, None]))
+				except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
+		func_args = list(inspect.getargspec(func or (lambda: None)))
+		_wrapper.__name__ = '...'
+		_wrapper.__doc__ = 'Signature: func' + inspect.formatargspec(*func_args)
+		if func.__doc__: _wrapper.__doc__ += '\n\n' + func.__doc__
+		return _wrapper
+
+	sink_set_as_default = _pulse_method_call_no_index(
+		c.pa.context_set_default_sink,
+		lambda sink: sink.name if isinstance(sink, PulseSinkInfo) else sink )
+	source_set_as_default = _pulse_method_call_no_index(
+		c.pa.context_set_default_source,
+		lambda source: source.name if isinstance(source, PulseSourceInfo) else source )
+
 	def _pulse_method_call(method_or_func, func=False):
 		if func is False: func_method, func = None, method_or_func
 		else: func_method = method_or_func
