@@ -643,6 +643,8 @@ def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, re
 		return s.makefile('rw', 1) if as_file else s
 
 	except Exception as err: # CallError, socket.error, IOError (pidfile), OSError (os.kill)
-		if s: s.close()
 		raise PulseError( 'Failed to connect to pulse'
 			' cli socket {!r}: {} {}'.format(server, type(err), err) )
+
+	finally:
+		if s: s.close()

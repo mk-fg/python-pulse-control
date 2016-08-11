@@ -36,7 +36,7 @@ class DummyTests(unittest.TestCase):
 
 		# Pick some random available localhost ports
 		bind = ( ['127.0.0.1', 0, socket.AF_INET],
-			['::1', 0, socket.AF_INET6], ['127.0.0.1', 0, socket.AF_INET6] )
+			['::1', 0, socket.AF_INET6], ['127.0.0.1', 0, socket.AF_INET] )
 		for spec in bind:
 			addr, p, af = spec
 			with contextlib.closing(socket.socket(af, socket.SOCK_STREAM)) as s:

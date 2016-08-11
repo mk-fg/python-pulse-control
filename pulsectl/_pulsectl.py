@@ -13,7 +13,10 @@ if sys.version_info.major >= 3:
 	class c_str_p_type(object):
 		c_type = c_char_p
 		def __call__(self, val): return force_str(val)
-		def from_param(self, val): return force_bytes(val)
+		def from_param(self, val):
+			# int will be interpreted as pointer and segfault in py3
+			if isinstance(val, int): raise ArgumentError(type(val))
+			return force_bytes(val)
 	unicode, c_str_p = str, c_str_p_type()
 
 	import time
