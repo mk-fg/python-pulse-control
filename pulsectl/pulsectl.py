@@ -416,53 +416,34 @@ class Pulse(object):
 		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info_list, PulseModuleInfo )
 
 
-	def _pulse_method_call_no_index(method_or_func, func=False):
-		if func is False: func_method, func = None, method_or_func
-		else: func_method = method_or_func
+	def _pulse_method_call(pulse_op, func=None, index_arg=True):
+		'''Creates following synchronous wrapper for async pa_operation callable:
+			wrapper(index, ...) -> pulse_op(index, [*]args_func(...))
+			index_arg=False: wrapper(...) -> pulse_op([*]args_func(...))'''
 		def _wrapper(self, *args, **kws):
-			method, pulse_call = func_method, func(*args, **kws) if func else list()
-			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
-			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
+			if index_arg:
+				if 'index' in kws: index = kws.pop('index')
+				else: index, args = args[0], args[1:]
+			pulse_args = func(*args, **kws) if func else list()
+			if not isinstance(pulse_args, (tuple, list)): pulse_args = [pulse_args]
+			if index_arg: pulse_args = [index] + list(pulse_call)
 			with self._pulse_op_cb() as cb:
-				try: method(self._ctx, *(list(pulse_call) + [cb, None]))
+				try: pulse_op(self._ctx, *(list(pulse_call) + [cb, None]))
 				except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
 		func_args = list(inspect.getargspec(func or (lambda: None)))
+		func_args[0] = list(func_args[0])
+		if index_arg: func_args[0] = ['index'] + func_args[0]
 		_wrapper.__name__ = '...'
 		_wrapper.__doc__ = 'Signature: func' + inspect.formatargspec(*func_args)
 		if func.__doc__: _wrapper.__doc__ += '\n\n' + func.__doc__
 		return _wrapper
 
-	sink_set_as_default = _pulse_method_call_no_index(
-		c.pa.context_set_default_sink,
-		lambda sink: sink.name if isinstance(sink, PulseSinkInfo) else sink )
-	source_set_as_default = _pulse_method_call_no_index(
-		c.pa.context_set_default_source,
-		lambda source: source.name if isinstance(source, PulseSourceInfo) else source )
-
-	def default(self, obj):
-		assert isinstance(obj, PulseObject), [type(obj), obj]
-		method = {
-			PulseSinkInfo: self.sink_set_as_default,
-			PulseSourceInfo: self.source_set_as_default }.get(type(obj))
-		if not method: raise NotImplementedError(type(obj))
-		method(obj)
-
-	def _pulse_method_call(method_or_func, func=False):
-		if func is False: func_method, func = None, method_or_func
-		else: func_method = method_or_func
-		def _wrapper(self, index, *args, **kws):
-			method, pulse_call = func_method, func(*args, **kws) if func else list()
-			if not isinstance(pulse_call, (tuple, list)): pulse_call = [pulse_call]
-			if not method: method, pulse_call = pulse_call[0], pulse_call[1:]
-			with self._pulse_op_cb() as cb:
-				try: method(self._ctx, index, *(list(pulse_call) + [cb, None]))
-				except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
-		func_args = list(inspect.getargspec(func or (lambda: None)))
-		func_args[0] = ['index'] + list(func_args[0])
-		_wrapper.__name__ = '...'
-		_wrapper.__doc__ = 'Signature: func' + inspect.formatargspec(*func_args)
-		if func.__doc__: _wrapper.__doc__ += '\n\n' + func.__doc__
-		return _wrapper
+	sink_default_set = _pulse_method_call(
+		c.pa.context_set_default_sink, index_arg=False,
+		func=lambda sink: sink.name if isinstance(sink, PulseSinkInfo) else sink )
+	source_default_set = _pulse_method_call(
+		c.pa.context_set_default_source, index_arg=False,
+		func=lambda source: source.name if isinstance(source, PulseSourceInfo) else source )
 
 	sink_input_mute = _pulse_method_call(
 		c.pa.context_set_sink_input_mute, lambda mute=True: mute )
@@ -511,6 +492,14 @@ class Pulse(object):
 
 	module_unload = _pulse_method_call(c.pa.context_unload_module, None)
 
+
+	def default_set(self, obj):
+		assert isinstance(obj, PulseObject), [type(obj), obj]
+		method = {
+			PulseSinkInfo: self.sink_set_as_default,
+			PulseSourceInfo: self.source_set_as_default }.get(type(obj))
+		if not method: raise NotImplementedError(type(obj))
+		method(obj)
 
 	def mute(self, obj, mute=True):
 		assert isinstance(obj, PulseObject), [type(obj), obj]
