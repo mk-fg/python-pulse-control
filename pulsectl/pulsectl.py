@@ -426,9 +426,9 @@ class Pulse(object):
 				else: index, args = args[0], args[1:]
 			pulse_args = func(*args, **kws) if func else list()
 			if not isinstance(pulse_args, (tuple, list)): pulse_args = [pulse_args]
-			if index_arg: pulse_args = [index] + list(pulse_call)
+			if index_arg: pulse_args = [index] + list(pulse_args)
 			with self._pulse_op_cb() as cb:
-				try: pulse_op(self._ctx, *(list(pulse_call) + [cb, None]))
+				try: pulse_op(self._ctx, *(list(pulse_args) + [cb, None]))
 				except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
 		func_args = list(inspect.getargspec(func or (lambda: None)))
 		func_args[0] = list(func_args[0])
