@@ -205,6 +205,32 @@ Never needed that, so not implemented in the module, but should be rather easy
 to implement on top of it, as described.
 
 
+Tests
+`````
+
+Test code is packaged/installed with the module and can be useful to run when
+changing module code, or to check if current python, module and pulseudio
+versions all work fine together.
+
+Commands to run tests from either checkout directory or installed module::
+
+  % python2 -m unittest pulsectl.tests.all
+  % python3 -m unittest pulsectl.tests.all
+
+Note that if "pulsectl" module is available both in current directory
+(e.g. checkout dir) and user/system python module path, former should always
+take priority for commands above.
+
+Test suite runs ad-hoc isolated pulseaudio instance with null-sinks (not
+touching hardware), custom (non-default) startup script and environment,
+and interacts only with that instance, terminating it afterwards.
+Still uses system/user daemon.conf files though, so these can affect the tests.
+
+Any test failures can indicate incompatibilities, bugs in the module code,
+issues with pulseaudio (or its daemon.conf) and underlying dependencies.
+There are no "expected" test case failures.
+
+
 
 Installation
 ------------

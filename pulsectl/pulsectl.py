@@ -631,7 +631,7 @@ def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, re
 			ts = c.mono_time()
 			try: s.connect(server)
 			except socket.error as err:
-				if err.errno not in [errno.ECONNREFUSED, errno.ENOENT]: raise
+				if err.errno not in [errno.ECONNREFUSED, errno.ENOENT, errno.ECONNABORTED]: raise
 			else: break
 			if n:
 				n -= 1
