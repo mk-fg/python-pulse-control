@@ -496,8 +496,8 @@ class Pulse(object):
 	def default_set(self, obj):
 		assert isinstance(obj, PulseObject), [type(obj), obj]
 		method = {
-			PulseSinkInfo: self.sink_set_as_default,
-			PulseSourceInfo: self.source_set_as_default }.get(type(obj))
+			PulseSinkInfo: self.sink_default_set,
+			PulseSourceInfo: self.source_default_set }.get(type(obj))
 		if not method: raise NotImplementedError(type(obj))
 		method(obj)
 
