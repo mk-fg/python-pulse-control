@@ -429,6 +429,7 @@ class Pulse(object):
 			if index_arg: pulse_args = [index] + list(pulse_args)
 			with self._pulse_op_cb() as cb:
 				try: pulse_op(self._ctx, *(list(pulse_args) + [cb, None]))
+				except c.ArgumentError as err: raise TypeError(err.args)
 				except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
 		func_args = list(inspect.getargspec(func or (lambda: None)))
 		func_args[0] = list(func_args[0])
@@ -637,7 +638,7 @@ def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, re
 				if n <= 0: raise PulseError('Number of connection attempts ({}) exceeded'.format(attempts))
 			if pid_path:
 				with open(pid_path) as src: os.kill(int(src.read().strip()), signal.SIGUSR2)
-			time.sleep(max(0, c.mono_time() - ts))
+			time.sleep(max(0, retry_delay - (c.mono_time() - ts)))
 
 		return s.makefile('rw', 1) if as_file else s
 
