@@ -554,7 +554,8 @@ class Pulse(object):
 
 	def event_callback_set(self, func):
 		'''Call event_listen() to start receiving these,
-			and be sure to raise PulseLoopStop in a callback to stop the loop.'''
+				and be sure to raise PulseLoopStop in a callback to stop the loop.
+			Passing None will disable the thing.'''
 		self.event_callback = func
 
 	def event_listen(self, timeout=None, raise_on_disconnect=True):

@@ -160,15 +160,20 @@ class DummyTests(unittest.TestCase):
 
 	def test_events(self):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
-			sink = pulse.sink_list()[0]
+			sink, cb_called = pulse.sink_list()[0], list()
 			def ev_cb(ev):
 				self.assertEqual(ev.facility, 'sink')
 				self.assertEqual(ev.t, 'change')
 				self.assertEqual(ev.index, sink.index)
+				cb_called.append(True)
 				raise pulsectl.PulseLoopStop
 			pulse.event_mask_set('all')
 			pulse.event_callback_set(ev_cb)
 			pulse.volume_set_all_chans(sink, 0.6)
+			if not cb_called: pulse.event_listen()
+			self.assertTrue(bool(cb_called))
+			pulse.event_mask_set('null')
+			pulse.event_callback_set(None)
 
 	def test_cli(self):
 		xdg_dir_prev = os.environ.get('XDG_RUNTIME_DIR')
