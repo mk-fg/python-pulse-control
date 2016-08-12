@@ -92,9 +92,9 @@ class DummyTests(unittest.TestCase):
 				if cls.proc.poll() is None:
 					time.sleep(float(timeout) / checks)
 					continue
-				cls.proc.wait()
 				break
 			else: cls.proc.kill()
+			cls.proc.wait()
 			cls.proc = None
 		if cls.tmp_dir:
 			shutil.rmtree(cls.tmp_dir)
