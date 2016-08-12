@@ -21,7 +21,7 @@ def setup_teardown(cls):
 
 class DummyTests(unittest.TestCase):
 
-	tmp_dir = xdg_dir = proc = None
+	tmp_dir = proc = None
 	sock_unix = sock_tcp4 = sock_tcp6 = None
 
 	@classmethod
@@ -30,9 +30,6 @@ class DummyTests(unittest.TestCase):
 
 		if not cls.tmp_dir: cls.tmp_dir = tempfile.mkdtemp(prefix='pulsectl-tests.')
 		tmp_path = ft.partial(os.path.join, cls.tmp_dir)
-
-		cls.xdg_dir = tmp_path('runtime')
-		if not os.path.exists(cls.xdg_dir): os.makedirs(cls.xdg_dir)
 
 		# Pick some random available localhost ports
 		bind = ( ['127.0.0.1', 0, socket.AF_INET],
@@ -43,7 +40,7 @@ class DummyTests(unittest.TestCase):
 				s.bind((addr, p))
 				s.listen(1)
 				spec[1] = s.getsockname()[1]
-		cls.sock_unix = 'unix:{}'.format(os.path.join(cls.xdg_dir, 'pulse', 'native'))
+		cls.sock_unix = 'unix:{}'.format(os.path.join(cls.tmp_dir, 'pulse', 'native'))
 		cls.sock_tcp4 = 'tcp4:{}:{}'.format(bind[0][0], bind[0][1])
 		cls.sock_tcp6 = 'tcp6:[{}]:{}'.format(bind[1][0], bind[1][1])
 		cls.sock_tcp_cli = tuple(bind[2][:2])
@@ -52,7 +49,7 @@ class DummyTests(unittest.TestCase):
 			cls.proc = subprocess.Popen(
 				[ 'pulseaudio', '--daemonize=no', '--fail',
 					'-nC', '--exit-idle-time=-1', '--log-level=error' ],
-				env=dict(XDG_RUNTIME_DIR=cls.xdg_dir), stdin=subprocess.PIPE )
+				env=dict(XDG_RUNTIME_DIR=cls.tmp_dir), stdin=subprocess.PIPE )
 			for line in [
 					'module-augment-properties',
 
@@ -178,7 +175,7 @@ class DummyTests(unittest.TestCase):
 	def test_cli(self):
 		xdg_dir_prev = os.environ.get('XDG_RUNTIME_DIR')
 		try:
-			os.environ['XDG_RUNTIME_DIR'] = self.xdg_dir
+			os.environ['XDG_RUNTIME_DIR'] = self.tmp_dir
 			with contextlib.closing(pulsectl.connect_to_cli()) as s:
 				s.write('dump\n')
 				for line in s:
