@@ -194,5 +194,95 @@ class DummyTests(unittest.TestCase):
 			if xdg_dir_prev is not None:
 				os.environ['XDG_RUNTIME_DIR'] = xdg_dir_prev
 
+	def test_sink_src(self):
+		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
+			src, sink = pulse.source_list()[0], pulse.sink_list()[0]
+			self.assertTrue(src.proplist.get('device.class'))
+			self.assertTrue(isinstance(src.proplist.get('device.class'), unicode))
+			self.assertTrue(isinstance(list(src.proplist.keys())[0], unicode))
+			self.assertTrue(sink.proplist.get('device.class'))
+			self.assertTrue(isinstance(sink.proplist.get('device.class'), unicode))
+			self.assertTrue(isinstance(list(sink.proplist.keys())[0], unicode))
+
+			pulse.mute(src, False)
+			self.assertFalse(src.mute)
+			self.assertFalse(pulse.source_info(src.index).mute)
+			pulse.mute(src, True)
+			pulse.mute(src, True)
+			self.assertTrue(src.mute)
+			self.assertTrue(pulse.source_info(src.index).mute)
+			pulse.mute(src, False)
+
+			pulse.mute(sink, False)
+			self.assertFalse(sink.mute)
+			self.assertFalse(pulse.sink_info(sink.index).mute)
+			pulse.mute(sink)
+			self.assertTrue(sink.mute)
+			self.assertTrue(pulse.sink_info(sink.index).mute)
+			pulse.mute(sink, False)
+
+			pulse.volume_set_all_chans(sink, 1.0)
+			self.assertEqual(sink.volume.value_flat, 1.0)
+			self.assertEqual(pulse.sink_info(sink.index).volume.values, sink.volume.values)
+			pulse.volume_set_all_chans(sink, 0.5)
+			self.assertEqual(sink.volume.value_flat, 0.5)
+			self.assertEqual(pulse.sink_info(sink.index).volume.values, sink.volume.values)
+			pulse.volume_change_all_chans(sink, -0.5)
+			self.assertEqual(sink.volume.value_flat, 0.0)
+			self.assertEqual(pulse.sink_info(sink.index).volume.values, sink.volume.values)
+			pulse.volume_set_all_chans(sink, 1.0)
+
+	def test_module_funcs(self):
+		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
+			self.assertEqual(len(pulse.sink_list()), 2)
+			idx = pulse.module_load('module-null-sink')
+			self.assertEqual(len(pulse.sink_list()), 3)
+			pulse.module_unload(idx)
+			self.assertEqual(len(pulse.sink_list()), 2)
+
+	def test_stream(self):
+		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
+			stream_started = list()
+			def stream_ev_cb(ev):
+				if ev.t != 'new': return
+				stream_started.append(ev.index)
+				raise pulsectl.PulseLoopStop
+			pulse.event_mask_set('sink_input')
+			pulse.event_callback_set(stream_ev_cb)
+
+			paplay = subprocess.Popen(
+				['paplay', '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
+			try:
+				if not stream_started: pulse.event_listen()
+				self.assertTrue(bool(stream_started))
+				stream_idx, = stream_started
+
+				stream = pulse.sink_input_info(stream_idx)
+				self.assertTrue(stream.proplist.get('application.name'))
+				self.assertTrue(isinstance(stream.proplist.get('application.name'), unicode))
+				self.assertTrue(isinstance(list(stream.proplist.keys())[0], unicode))
+
+				pulse.mute(stream, False)
+				self.assertFalse(stream.mute)
+				self.assertFalse(pulse.sink_input_info(stream.index).mute)
+				pulse.mute(stream)
+				self.assertTrue(stream.mute)
+				self.assertTrue(pulse.sink_input_info(stream.index).mute)
+				pulse.mute(stream, False)
+
+				pulse.volume_set_all_chans(stream, 1.0)
+				self.assertEqual(stream.volume.value_flat, 1.0)
+				self.assertEqual(pulse.sink_input_info(stream.index).volume.values, stream.volume.values)
+				pulse.volume_set_all_chans(stream, 0.5)
+				self.assertEqual(stream.volume.value_flat, 0.5)
+				self.assertEqual(pulse.sink_input_info(stream.index).volume.values, stream.volume.values)
+				pulse.volume_change_all_chans(stream, -0.5)
+				self.assertEqual(stream.volume.value_flat, 0.0)
+				self.assertEqual(pulse.sink_input_info(stream.index).volume.values, stream.volume.values)
+
+			finally:
+				if paplay.poll() is None: paplay.kill()
+				paplay.wait()
+
 
 if __name__ == '__main__': unittest.main()

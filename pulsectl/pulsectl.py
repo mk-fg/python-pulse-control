@@ -479,7 +479,7 @@ class Pulse(object):
 		lambda port: port.name if isinstance(port, PulsePortInfo) else port )
 
 
-	def module_load(self, name, args):
+	def module_load(self, name, args=''):
 		if isinstance(args, (tuple, list)): args = ' '.join(args)
 		name, args = map(c.force_bytes, [name, args])
 		data = list()
