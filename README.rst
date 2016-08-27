@@ -289,6 +289,9 @@ Links
 
   Branches there have bindings for different (newer) pulseaudio versions.
 
+* `pypulseaudio <https://github.com/liamw9534/pypulseaudio/>`_ -
+  high-level bindings module, rather similar to this one.
+
 * `pulseaudio-mixer-cli`_ - alsamixer-like script built on top of this module.
 
 
