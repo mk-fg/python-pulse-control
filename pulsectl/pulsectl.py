@@ -165,6 +165,12 @@ class PulseVolumeInfo(PulseObject):
 			channels=len(self.values), volumes='[{}]'.format(
 				' '.join('{}%'.format(int(round(v*100))) for v in self.values) ) )
 
+class PulseExtStreamRestoreInfo(PulseObject):
+	c_struct_fields = 'name channel_map volume mute'
+
+	def __str__(self):
+		return self._as_str(self.volume, fields='name mute')
+
 class PulseEventInfo(PulseObject):
 
 	def __init__(self, ev_t, facility, index):
@@ -414,6 +420,10 @@ class Pulse(object):
 		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info, PulseModuleInfo )
 	module_list = _pulse_get_list(
 		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info_list, PulseModuleInfo )
+
+	stream_restore_list = _pulse_get_list(
+		c.PA_EXT_STREAM_RESTORE_READ_CB_T,
+		c.pa.ext_stream_restore_read, PulseExtStreamRestoreInfo )
 
 
 	def _pulse_method_call(pulse_op, func=None, index_arg=True):

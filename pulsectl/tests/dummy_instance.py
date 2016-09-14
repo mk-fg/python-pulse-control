@@ -284,5 +284,36 @@ class DummyTests(unittest.TestCase):
 				if paplay.poll() is None: paplay.kill()
 				paplay.wait()
 
+	def test_ext_stream_restore(self):
+		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
+			# XXX: not sure why info doesn't get saved for this stream
+			# XXX: use stream_restore_write to create entries here
+
+			# stream_started = list()
+			# def stream_ev_cb(ev):
+			# 	if ev.t != 'new': return
+			# 	stream_started.append(ev.index)
+			# 	raise pulsectl.PulseLoopStop
+			# pulse.event_mask_set('sink_input')
+			# pulse.event_callback_set(stream_ev_cb)
+
+			# paplay = subprocess.Popen(
+			# 	['paplay', '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
+			# try:
+			# 	if not stream_started: pulse.event_listen()
+			# 	self.assertTrue(bool(stream_started))
+			# 	stream_idx, = stream_started
+			# 	stream = pulse.sink_input_info(stream_idx)
+			# 	# pulse.mute(stream, True)
+			# 	pulse.volume_set_all_chans(stream, 0.3)
+			# 	paplay.terminate()
+			# 	paplay.wait()
+			# finally:
+			# 	if paplay.poll() is None: paplay.kill()
+			# 	paplay.wait()
+
+			sr_list = pulse.stream_restore_list() # empty
+			self.assertIsInstance(sr_list, list)
+
 
 if __name__ == '__main__': unittest.main()

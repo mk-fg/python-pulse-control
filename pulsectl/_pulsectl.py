@@ -114,13 +114,11 @@ class PA_SAMPLE_SPEC(Structure):
 		('channels', c_uint32)
 	]
 
-
 class PA_CHANNEL_MAP(Structure):
 	_fields_ = [
 		('channels', c_uint8),
 		('map', c_int * PA_CHANNELS_MAX)
 	]
-
 
 class PA_CVOLUME(Structure):
 	_fields_ = [
@@ -128,14 +126,12 @@ class PA_CVOLUME(Structure):
 		('values', c_uint32 * PA_CHANNELS_MAX)
 	]
 
-
 class PA_PORT_INFO(Structure):
 	_fields_ = [
 		('name', c_char_p),
 		('description', c_char_p),
 		('priority', c_uint32),
 	]
-
 
 class PA_SINK_INPUT_INFO(Structure):
 	_fields_ = [
@@ -157,7 +153,6 @@ class PA_SINK_INPUT_INFO(Structure):
 		('has_volume', c_int),
 		('volume_writable', c_int),
 	]
-
 
 class PA_SINK_INFO(Structure):
 	_fields_ = [
@@ -185,7 +180,6 @@ class PA_SINK_INFO(Structure):
 		('active_port', POINTER(PA_PORT_INFO)),
 	]
 
-
 class PA_SOURCE_OUTPUT_INFO(Structure):
 	_fields_ = [
 		('index', c_uint32),
@@ -206,7 +200,6 @@ class PA_SOURCE_OUTPUT_INFO(Structure):
 		('has_volume', c_int),
 		('volume_writable', c_int),
 	]
-
 
 class PA_SOURCE_INFO(Structure):
 	_fields_ = [
@@ -234,7 +227,6 @@ class PA_SOURCE_INFO(Structure):
 		('active_port', POINTER(PA_PORT_INFO)),
 	]
 
-
 class PA_CLIENT_INFO(Structure):
 	_fields_ = [
 		('index', c_uint32),
@@ -242,7 +234,6 @@ class PA_CLIENT_INFO(Structure):
 		('owner_module', c_uint32),
 		('driver', c_char_p),
 	]
-
 
 class PA_SERVER_INFO(Structure):
 	_fields_ = [
@@ -257,7 +248,6 @@ class PA_SERVER_INFO(Structure):
 		('channel_map', PA_CHANNEL_MAP),
 	]
 
-
 class PA_CARD_PROFILE_INFO(Structure):
 	_fields_ = [
 		('name', c_char_p),
@@ -266,7 +256,6 @@ class PA_CARD_PROFILE_INFO(Structure):
 		('n_sources', c_uint32),
 		('priority', c_uint32),
 	]
-
 
 class PA_CARD_INFO(Structure):
 	_fields_ = [
@@ -280,7 +269,6 @@ class PA_CARD_INFO(Structure):
 		('proplist', POINTER(PA_PROPLIST)),
 	]
 
-
 class PA_MODULE_INFO(Structure):
 	_fields_ = [
 		('index', c_uint32),
@@ -289,6 +277,15 @@ class PA_MODULE_INFO(Structure):
 		('n_used', c_uint32),
 		('auto_unload', c_int),
 		('proplist', POINTER(PA_PROPLIST)),
+	]
+
+class PA_EXT_STREAM_RESTORE_INFO(Structure):
+	_fields_ = [
+		('name', c_char_p),
+		('channel_map', PA_CHANNEL_MAP),
+		('volume', PA_CVOLUME),
+		('device', c_void_p),
+		('mute', c_int),
 	]
 
 
@@ -362,6 +359,12 @@ PA_CONTEXT_INDEX_CB_T = CFUNCTYPE(c_void_p,
 
 PA_CONTEXT_SUCCESS_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_CONTEXT),
+	c_int,
+	c_void_p)
+
+PA_EXT_STREAM_RESTORE_READ_CB_T = CFUNCTYPE(c_void_p,
+	POINTER(PA_CONTEXT),
+	POINTER(PA_EXT_STREAM_RESTORE_INFO),
 	c_int,
 	c_void_p)
 
@@ -489,6 +492,8 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_subscribe=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_ext_stream_restore_read=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_EXT_STREAM_RESTORE_READ_CB_T, c_void_p] ),
 		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
 		pa_proplist_iterate=([POINTER(PA_PROPLIST), POINTER(c_void_p)], c_str_p),
 		pa_proplist_gets=([POINTER(PA_PROPLIST), c_str_p], c_str_p),
