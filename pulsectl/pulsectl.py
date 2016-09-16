@@ -361,7 +361,7 @@ class Pulse(object):
 		else: data_list.append(info_cls(info[0]))
 		return 0
 
-	def _pulse_get_list(cb_t, pulse_func, info_cls, singleton=False):
+	def _pulse_get_list(cb_t, pulse_func, info_cls, singleton=False, index_arg=True):
 		def _wrapper(self, index=None):
 			data = list()
 			with self._pulse_op_cb(raw=True) as cb:
@@ -378,7 +378,7 @@ class Pulse(object):
 		def _add_wrap_doc(func):
 			func.__name__ = '...'
 			func.__doc__ = 'Signature: func({})'.format(
-				'' if pulse_func.__name__.endswith('_list') or singleton else 'index' )
+				'' if pulse_func.__name__.endswith('_list') or singleton or not index_arg else 'index' )
 		def _decorator_or_method(func_or_self=None, index=None):
 			if func_or_self.__class__.__name__ == 'Pulse':
 				return _wrapper(func_or_self, index)
@@ -515,9 +515,10 @@ class Pulse(object):
 		version, = data
 		return version if version != c.PA_INVALID else None
 
-	stream_restore_list = _pulse_get_list(
+	stream_restore_read = _pulse_get_list(
 		c.PA_EXT_STREAM_RESTORE_READ_CB_T,
-		c.pa.ext_stream_restore_read, PulseExtStreamRestoreInfo )
+		c.pa.ext_stream_restore_read, PulseExtStreamRestoreInfo, index_arg=False )
+	stream_restore_list = stream_restore_read # for consistency with other *_list methods
 
 	@ft.partial(_pulse_method_call, c.pa.ext_stream_restore_write, index_arg=False)
 	def stream_restore_write( name, volume, channel_list=None,
