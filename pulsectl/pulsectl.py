@@ -10,7 +10,7 @@ from . import _pulsectl as c
 
 
 if sys.version_info.major >= 3:
-	print_err = ft.partial(print, file=sys.stderr, flush=True)
+	long, unicode, print_err = int, str, ft.partial(print, file=sys.stderr, flush=True)
 else:
 	range, map = xrange, it.imap
 	def print_err(*args, **kws):
@@ -143,9 +143,16 @@ class PulseSourceOutputInfo(PulseObject):
 
 class PulseVolumeInfo(PulseObject):
 
-	def __init__(self, struct):
-		self.values = list( (x / c.PA_VOLUME_NORM)
-			for x in map(float, struct.values[:struct.channels]) )
+	@classmethod
+	def struct_from_value(cls, volume_or_list, channels=None):
+		if isinstance(volume_or_list, (int, float, long)):
+			assert channels is not None, 'Channel count specified if volume value is not a list.'
+			volume_or_list = [volume_or_list] * channels
+		return cls(values=volume_or_list).to_struct()
+
+	def __init__(self, struct=None, values=None):
+		self.values = values or list(
+			(x / c.PA_VOLUME_NORM) for x in map(float, struct.values[:struct.channels]) )
 
 	@property
 	def value_flat(self): return sum(self.values) / float(len(self.values))
@@ -153,12 +160,9 @@ class PulseVolumeInfo(PulseObject):
 	def value_flat(self, v): self.values = [v] * len(self.values)
 
 	def to_struct(self):
-		struct = c.PA_CVOLUME()
-		struct.channels = len(self.values)
-		for x in range(struct.channels):
-			struct.values[x] = min( c.PA_VOLUME_UI_MAX,
-				int(round(self.values[x] * c.PA_VOLUME_NORM)) )
-		return struct
+		return c.PA_CVOLUME(
+			len(self.values), tuple(min( c.PA_VOLUME_UI_MAX,
+					int(round(v * c.PA_VOLUME_NORM)) ) for v in self.values) )
 
 	def __str__(self):
 		return self._as_str(
@@ -166,10 +170,10 @@ class PulseVolumeInfo(PulseObject):
 				' '.join('{}%'.format(int(round(v*100))) for v in self.values) ) )
 
 class PulseExtStreamRestoreInfo(PulseObject):
-	c_struct_fields = 'name channel_map volume mute'
+	c_struct_fields = 'name channel_map volume mute device'
 
 	def __str__(self):
-		return self._as_str(self.volume, fields='name mute')
+		return self._as_str(self.volume, fields='name mute device')
 
 class PulseEventInfo(PulseObject):
 
@@ -421,10 +425,6 @@ class Pulse(object):
 	module_list = _pulse_get_list(
 		c.PA_MODULE_INFO_CB_T, c.pa.context_get_module_info_list, PulseModuleInfo )
 
-	stream_restore_list = _pulse_get_list(
-		c.PA_EXT_STREAM_RESTORE_READ_CB_T,
-		c.pa.ext_stream_restore_read, PulseExtStreamRestoreInfo )
-
 
 	def _pulse_method_call(pulse_op, func=None, index_arg=True):
 		'''Creates following synchronous wrapper for async pa_operation callable:
@@ -502,6 +502,51 @@ class Pulse(object):
 		return index
 
 	module_unload = _pulse_method_call(c.pa.context_unload_module, None)
+
+
+	def stream_restore_test(self):
+		'Returns module-stream-restore version int (e.g. 1) or None if it is unavailable.'
+		data = list()
+		with self._pulse_op_cb(raw=True) as cb:
+			cb = c.PA_EXT_STREAM_RESTORE_TEST_CB_T(
+				lambda ctx, version, userdata, cb=cb: data.append(version) or cb() )
+			try: c.pa.ext_stream_restore_test(self._ctx, cb, None)
+			except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
+		version, = data
+		return version if version != c.PA_INVALID else None
+
+	stream_restore_list = _pulse_get_list(
+		c.PA_EXT_STREAM_RESTORE_READ_CB_T,
+		c.pa.ext_stream_restore_read, PulseExtStreamRestoreInfo )
+
+	@ft.partial(_pulse_method_call, c.pa.ext_stream_restore_write, index_arg=False)
+	def stream_restore_write( name, volume, channel_map=None,
+			mode='merge', mute=False, device=None, apply_immediately=False ):
+		'''Update module-stream-restore db entry for specified name.
+			"mode" is 'set', 'merge' (default) or 'replace'.
+			"volume" can be either a number or list (one value per channel).
+			"channel_map" is either inferred from
+					"volume" (if list is passed there) or defaults to [left,right] stereo.
+				Decoding channel names is not implemented properly here, hence ids.
+			"device" - name of sink/source or None (default).'''
+		mode = c.PA_UPDATE_MAP[mode]
+		if not channel_map:
+			if not isinstance(volume, (float, int, long)): channel_map = list(range(1, len(volume) + 1))
+			else: channel_map = [1, 2]
+		# else: # XXX: decode chan names to ids here, i.e. reverse pa_channel_map_snprint
+		# XXX: allow passing multiple (name, volume) tuples
+		restore_struct = c.PA_EXT_STREAM_RESTORE_INFO(
+			name=c.force_bytes(name), device=c.force_bytes(device), mute=int(bool(mute)),
+			channel_map=c.PA_CHANNEL_MAP(len(channel_map), tuple(channel_map)),
+			volume=PulseVolumeInfo.struct_from_value(volume, len(channel_map)) )
+		return mode, c.pointer(restore_struct), 1, int(bool(apply_immediately))
+
+	@ft.partial(_pulse_method_call, c.pa.ext_stream_restore_delete, index_arg=False)
+	def stream_restore_delete(name_or_list):
+		if isinstance(name_or_list, (unicode, bytes)): name_or_list = [name_or_list]
+		names = (c.c_char_p * len(name_or_list))()
+		names[:] = list(map(c.force_bytes, name_or_list))
+		return [names]
 
 
 	def default_set(self, obj):

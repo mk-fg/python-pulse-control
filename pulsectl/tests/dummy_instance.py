@@ -28,8 +28,20 @@ class DummyTests(unittest.TestCase):
 	def setUpClass(cls):
 		setup_teardown(cls)
 
-		if not cls.tmp_dir: cls.tmp_dir = tempfile.mkdtemp(prefix='pulsectl-tests.')
-		tmp_path = ft.partial(os.path.join, cls.tmp_dir)
+		# These are to allow starting pulse with debug logging
+		#  or using pre-started (e.g. with gdb attached) instance
+		# For example:
+		#  t1% env -i XDG_RUNTIME_DIR=/tmp/pulsectl-tests \
+		#       gdb --args /usr/bin/pulseaudio --daemonize=no --fail \
+		#       -nF /tmp/pulsectl-tests/conf.pa --exit-idle-time=-1 --log-level=debug
+		#  t2% PA_TMPDIR=/tmp/pulsectl-tests PA_REUSE=t python -m -m unittest pulsectl.tests.all
+		env_tmpdir, env_debug, env_reuse = map(
+			os.environ.get, ['PA_TMPDIR', 'PA_DEBUG', 'PA_REUSE'] )
+
+		tmp_base = env_tmpdir or cls.tmp_dir
+		if not tmp_base: tmp_base = cls.tmp_dir = tempfile.mkdtemp(prefix='pulsectl-tests.')
+		tmp_base = os.path.realpath(tmp_base)
+		tmp_path = ft.partial(os.path.join, tmp_base)
 
 		# Pick some random available localhost ports
 		bind = ( ['127.0.0.1', 0, socket.AF_INET],
@@ -40,16 +52,18 @@ class DummyTests(unittest.TestCase):
 				s.bind((addr, p))
 				s.listen(1)
 				spec[1] = s.getsockname()[1]
-		cls.sock_unix = 'unix:{}'.format(os.path.join(cls.tmp_dir, 'pulse', 'native'))
+		cls.sock_unix = 'unix:{}'.format(tmp_path('pulse', 'native'))
 		cls.sock_tcp4 = 'tcp4:{}:{}'.format(bind[0][0], bind[0][1])
 		cls.sock_tcp6 = 'tcp6:[{}]:{}'.format(bind[1][0], bind[1][1])
 		cls.sock_tcp_cli = tuple(bind[2][:2])
 
-		if not cls.proc:
+		if not env_reuse and not cls.proc:
+			env = dict(XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base)
+			log_level = 'error' if not env_debug else 'debug'
 			cls.proc = subprocess.Popen(
 				[ 'pulseaudio', '--daemonize=no', '--fail',
-					'-nC', '--exit-idle-time=-1', '--log-level=error' ],
-				env=dict(XDG_RUNTIME_DIR=cls.tmp_dir), stdin=subprocess.PIPE )
+					'-nC', '--exit-idle-time=-1', '--log-level={}'.format(log_level) ],
+				env=env, stdin=subprocess.PIPE )
 			for line in [
 					'module-augment-properties',
 
@@ -63,6 +77,7 @@ class DummyTests(unittest.TestCase):
 					'module-filter-heuristics',
 					'module-filter-apply',
 					'module-switch-on-port-available',
+					'module-stream-restore',
 
 					'module-native-protocol-tcp auth-anonymous=true'
 						' listen={addr4} port={port4}'.format(addr4=bind[0][0], port4=bind[0][1]),
@@ -99,6 +114,19 @@ class DummyTests(unittest.TestCase):
 		if cls.tmp_dir:
 			shutil.rmtree(cls.tmp_dir)
 			cls.tmp_dir = None
+
+
+	# Fuzzy float comparison is necessary for volume,
+	#  as these loose precision when converted to/from pulse int values.
+
+	_compare_floats_rounding = 3
+	def _compare_floats(self, a, b, msg=None):
+		if round(a, self._compare_floats_rounding) != round(b, self._compare_floats_rounding):
+			return self._baseAssertEqual(a, b, msg)
+
+	def __init__(self, *args, **kws):
+		super(DummyTests, self).__init__(*args, **kws)
+		self.addTypeEqualityFunc(float, self._compare_floats)
 
 
 	def test_connect(self):
@@ -285,35 +313,41 @@ class DummyTests(unittest.TestCase):
 				paplay.wait()
 
 	def test_ext_stream_restore(self):
+		sr_name1 = 'sink-input-by-application-name:pulsectl-test-1'
+		sr_name2 = 'sink-input-by-application-name:pulsectl-test-2'
+
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
-			# XXX: not sure why info doesn't get saved for this stream
-			# XXX: use stream_restore_write to create entries here
+			self.assertIsNotNone(pulse.stream_restore_test())
 
-			# stream_started = list()
-			# def stream_ev_cb(ev):
-			# 	if ev.t != 'new': return
-			# 	stream_started.append(ev.index)
-			# 	raise pulsectl.PulseLoopStop
-			# pulse.event_mask_set('sink_input')
-			# pulse.event_callback_set(stream_ev_cb)
+			pulse.stream_restore_write(sr_name1, 0.5, mute=True)
+			pulse.stream_restore_write(sr_name2, 0.3, apply_immediately=True) # XXX: chan_map
 
-			# paplay = subprocess.Popen(
-			# 	['paplay', '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
-			# try:
-			# 	if not stream_started: pulse.event_listen()
-			# 	self.assertTrue(bool(stream_started))
-			# 	stream_idx, = stream_started
-			# 	stream = pulse.sink_input_info(stream_idx)
-			# 	# pulse.mute(stream, True)
-			# 	pulse.volume_set_all_chans(stream, 0.3)
-			# 	paplay.terminate()
-			# 	paplay.wait()
-			# finally:
-			# 	if paplay.poll() is None: paplay.kill()
-			# 	paplay.wait()
-
-			sr_list = pulse.stream_restore_list() # empty
+			sr_list = pulse.stream_restore_list()
 			self.assertIsInstance(sr_list, list)
+			self.assertTrue(sr_list)
+			sr_dict = dict((sr.name, sr) for sr in sr_list)
+			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.5)
+			self.assertEqual(sr_dict[sr_name1].mute, 1)
+			self.assertIn(sr_name2, sr_dict)
+
+			pulse.stream_restore_delete(sr_name1)
+			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
+			self.assertNotIn(sr_name1, sr_dict)
+			self.assertIn(sr_name2, sr_dict)
+
+			pulse.stream_restore_write(sr_name1, 0.7, mode='merge')
+			pulse.stream_restore_write(sr_name1, 0.3) # ignored with mode=merge
+			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
+			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.7)
+
+			pulse.stream_restore_write(sr_name1, 0.4, mode='replace')
+			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
+			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.4)
+
+			pulse.stream_restore_write(sr_name2, 0.9, mode='set')
+			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
+			self.assertEqual(sr_dict[sr_name2].volume.value_flat, 0.9)
+			self.assertEqual(list(sr_dict.keys()), [sr_name2])
 
 
 if __name__ == '__main__': unittest.main()

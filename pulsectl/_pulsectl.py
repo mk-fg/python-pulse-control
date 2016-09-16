@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 
 # C Bindings
 
@@ -39,6 +41,8 @@ else:
 			raise OSError(err, os.strerror(err))
 		return ts.tv_sec + ts.tv_nsec * 1e-9
 
+
+PA_INVALID = 2**32-1
 
 PA_VOLUME_NORM = 0x10000
 PA_VOLUME_MAX = 2**32-1 // 2
@@ -95,6 +99,8 @@ PA_SUBSCRIPTION_EVENT_TYPE_MASK = 0x0030
 #  pa_sink_state / pa_source_state, but seem to match.
 PA_OBJ_STATE_MAP = dict( (v, force_str(k))
 	for k,v in dict(invalid=-1, running=0, idle=1, suspended=2).items() )
+
+PA_UPDATE_MAP = dict(set=0, merge=1, replace=2)
 
 
 class PA_MAINLOOP(Structure): pass
@@ -284,7 +290,7 @@ class PA_EXT_STREAM_RESTORE_INFO(Structure):
 		('name', c_char_p),
 		('channel_map', PA_CHANNEL_MAP),
 		('volume', PA_CVOLUME),
-		('device', c_void_p),
+		('device', c_char_p),
 		('mute', c_int),
 	]
 
@@ -360,6 +366,11 @@ PA_CONTEXT_INDEX_CB_T = CFUNCTYPE(c_void_p,
 PA_CONTEXT_SUCCESS_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_CONTEXT),
 	c_int,
+	c_void_p)
+
+PA_EXT_STREAM_RESTORE_TEST_CB_T = CFUNCTYPE(c_void_p,
+	POINTER(PA_CONTEXT),
+	c_uint32,
 	c_void_p)
 
 PA_EXT_STREAM_RESTORE_READ_CB_T = CFUNCTYPE(c_void_p,
@@ -492,8 +503,15 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_subscribe=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_ext_stream_restore_test=( 'pa_op',
+			[POINTER(PA_CONTEXT), PA_EXT_STREAM_RESTORE_TEST_CB_T, c_void_p] ),
 		pa_ext_stream_restore_read=( 'pa_op',
 			[POINTER(PA_CONTEXT), PA_EXT_STREAM_RESTORE_READ_CB_T, c_void_p] ),
+		pa_ext_stream_restore_write=( 'pa_op', [
+			POINTER(PA_CONTEXT), c_int, POINTER(PA_EXT_STREAM_RESTORE_INFO),
+			c_uint, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p ] ),
+		pa_ext_stream_restore_delete=( 'pa_op',
+			[POINTER(PA_CONTEXT), POINTER(c_char_p), PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
 		pa_proplist_iterate=([POINTER(PA_PROPLIST), POINTER(c_void_p)], c_str_p),
 		pa_proplist_gets=([POINTER(PA_PROPLIST), c_str_p], c_str_p),
@@ -527,7 +545,8 @@ class LibPulse(object):
 		elif not func.restype: func.restype, res_proc = res_proc, None
 
 		def _wrapper(*args):
-			# print('libpulse call:', func_name, args, file=sys.stderr, flush=True)
+			# print('libpulse call:', func_name, args, file=sys.stderr)
+			# sys.stderr.flush()
 			res = func(*args)
 			if isinstance(res_proc, str):
 				assert res_proc in ['int_check_ge0', 'pa_op', 'not_null']
