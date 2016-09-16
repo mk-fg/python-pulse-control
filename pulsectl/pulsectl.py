@@ -520,25 +520,26 @@ class Pulse(object):
 		c.pa.ext_stream_restore_read, PulseExtStreamRestoreInfo )
 
 	@ft.partial(_pulse_method_call, c.pa.ext_stream_restore_write, index_arg=False)
-	def stream_restore_write( name, volume, channel_map=None,
+	def stream_restore_write( name, volume, channel_list=None,
 			mode='merge', mute=False, device=None, apply_immediately=False ):
 		'''Update module-stream-restore db entry for specified name.
-			"mode" is 'set', 'merge' (default) or 'replace'.
-			"volume" can be either a number or list (one value per channel).
-			"channel_map" is either inferred from
-					"volume" (if list is passed there) or defaults to [left,right] stereo.
-				Decoding channel names is not implemented properly here, hence ids.
+			"mode" is 'merge' (default), 'replace' or 'set' (replaces ALL entries!!!).
+			"volume" can be either a float number
+				(same level for all channels) or list (value per channel).
+			"channel_list" can be a pulse channel map string (comma-separated) or list
+				of channel names. Defaults to stereo map, should probably match volume channels.
 			"device" - name of sink/source or None (default).'''
-		mode = c.PA_UPDATE_MAP[mode]
-		if not channel_map:
-			if not isinstance(volume, (float, int, long)): channel_map = list(range(1, len(volume) + 1))
-			else: channel_map = [1, 2]
-		# else: # XXX: decode chan names to ids here, i.e. reverse pa_channel_map_snprint
-		# XXX: allow passing multiple (name, volume) tuples
+		# XXX: allow passing multiple (name, volume) tuples for mode=set to be useful
+		mode, chan_map = c.PA_UPDATE_MAP[mode], c.PA_CHANNEL_MAP()
+		if not channel_list: c.pa.channel_map_init_stereo(chan_map)
+		else:
+			if not isinstance(channel_list, (unicode, bytes)):
+				channel_list = b','.join(map(c.force_bytes, channel_list))
+			c.pa.channel_map_parse(chan_map, channel_list)
 		restore_struct = c.PA_EXT_STREAM_RESTORE_INFO(
-			name=c.force_bytes(name), device=c.force_bytes(device), mute=int(bool(mute)),
-			channel_map=c.PA_CHANNEL_MAP(len(channel_map), tuple(channel_map)),
-			volume=PulseVolumeInfo.struct_from_value(volume, len(channel_map)) )
+			name=c.force_bytes(name), mute=int(bool(mute)),
+			device=c.force_bytes(device), channel_map=chan_map,
+			volume=PulseVolumeInfo.struct_from_value(volume, chan_map.channels) )
 		return mode, c.pointer(restore_struct), 1, int(bool(apply_immediately))
 
 	@ft.partial(_pulse_method_call, c.pa.ext_stream_restore_delete, index_arg=False)

@@ -320,7 +320,8 @@ class DummyTests(unittest.TestCase):
 			self.assertIsNotNone(pulse.stream_restore_test())
 
 			pulse.stream_restore_write(sr_name1, 0.5, mute=True)
-			pulse.stream_restore_write(sr_name2, 0.3, apply_immediately=True) # XXX: chan_map
+			pulse.stream_restore_write( sr_name2, 0.3,
+				channel_list='mono', apply_immediately=True )
 
 			sr_list = pulse.stream_restore_list()
 			self.assertIsInstance(sr_list, list)
@@ -328,17 +329,22 @@ class DummyTests(unittest.TestCase):
 			sr_dict = dict((sr.name, sr) for sr in sr_list)
 			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.5)
 			self.assertEqual(sr_dict[sr_name1].mute, 1)
+			self.assertEqual(sr_dict[sr_name1].channel_list, ['front-left', 'front-right'])
 			self.assertIn(sr_name2, sr_dict)
+			self.assertEqual(sr_dict[sr_name2].channel_list, ['mono'])
 
 			pulse.stream_restore_delete(sr_name1)
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
 			self.assertNotIn(sr_name1, sr_dict)
 			self.assertIn(sr_name2, sr_dict)
 
-			pulse.stream_restore_write(sr_name1, 0.7, mode='merge')
-			pulse.stream_restore_write(sr_name1, 0.3) # ignored with mode=merge
+			pulse.stream_restore_write( sr_name1, 0.7,
+				channel_list=['front-left', 'front-right'], mode='merge' )
+			pulse.stream_restore_write(sr_name1, 0.3, 'mono', mute=True) # ignored with mode=merge
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
 			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.7)
+			self.assertEqual(sr_dict[sr_name1].mute, 0)
+			self.assertEqual(sr_dict[sr_name1].channel_list, ['front-left', 'front-right'])
 
 			pulse.stream_restore_write(sr_name1, 0.4, mode='replace')
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())

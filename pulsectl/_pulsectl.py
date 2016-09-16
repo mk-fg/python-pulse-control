@@ -515,7 +515,13 @@ class LibPulse(object):
 		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
 		pa_proplist_iterate=([POINTER(PA_PROPLIST), POINTER(c_void_p)], c_str_p),
 		pa_proplist_gets=([POINTER(PA_PROPLIST), c_str_p], c_str_p),
-		pa_channel_map_snprint=([c_str_p, c_int, POINTER(PA_CHANNEL_MAP)], c_str_p) )
+		pa_channel_map_init_mono=(
+			[POINTER(PA_CHANNEL_MAP)], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
+		pa_channel_map_init_stereo=(
+			[POINTER(PA_CHANNEL_MAP)], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
+		pa_channel_map_snprint=([c_str_p, c_int, POINTER(PA_CHANNEL_MAP)], c_str_p),
+		pa_channel_map_parse=(
+			[POINTER(PA_CHANNEL_MAP), c_str_p], (POINTER(PA_CHANNEL_MAP), 'not_null') ) )
 
 	class CallError(Exception): pass
 
@@ -554,7 +560,7 @@ class LibPulse(object):
 						or (res_proc == 'pa_op' and not res)\
 						or (res_proc == 'not_null' and not res):
 					err = [func_name, args, res]
-					if args and isinstance(args[0].contents, PA_CONTEXT):
+					if args and isinstance(getattr(args[0], 'contents', None), PA_CONTEXT):
 						errno_ = self.context_errno(args[0])
 						err.append(self.strerror(errno_))
 					else: err.append('Return value check failed: {}'.format(res_proc))
