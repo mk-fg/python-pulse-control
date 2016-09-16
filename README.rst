@@ -95,6 +95,8 @@ thread.
 Somewhat extended usage example can be found in `pulseaudio-mixer-cli`_ project
 code.
 
+.. _pulseaudio-mixer-cli: https://github.com/mk-fg/pulseaudio-mixer-cli/blob/master/pa-mixer-mk3.py
+
 
 
 Notes
@@ -245,36 +247,42 @@ Using pip_ is the best way::
 
   % pip install pulsectl
 
-If you don't have pip::
+(add --user option to install into $HOME for current user only)
 
-  % easy_install pip
-  % pip install pulsectl
+Or, if you don't have "pip" command::
 
-Alternatively (see also `pip2014.com`_ and `pip install guide`_)::
+  % python -m ensurepip
+  % python -m pip install --upgrade pip
+  % python -m pip install pulsectl
 
-  % curl https://raw.github.com/pypa/pip/master/contrib/get-pip.py | python
-  % pip install pulsectl
+(same suggestion wrt "install --user" as above)
 
-Or, if you absolutely must::
+On a very old systems, one of these might work::
 
   % easy_install pulsectl
 
-But, you really shouldn't do that.
+  % git clone --depth=1 https://github.com/mk-fg/python-pulse-control
+  % cd python-pulse-control
+  % python setup.py install
+
+(all of install-commands here also have --user option)
 
 Current-git version can be installed like this::
 
-  % pip install 'git+https://github.com/mk-fg/python-pulse-control.git#egg=pulsectl'
+  % pip install 'git+https://github.com/mk-fg/python-pulse-control#egg=pulsectl'
 
-Note that to install stuff in system-wide PATH and site-packages, elevated
-privileges are often required.
+Note that to install stuff to system-wide PATH and site-packages (without
+--user), elevated privileges (i.e. root and su/sudo) are often required.
+
 Use "...install --user", `~/.pydistutils.cfg`_ or virtualenv_ to do unprivileged
 installs into custom paths.
 
+More info on python packaging can be found at `packaging.python.org`_.
+
 .. _pip: http://pip-installer.org/
-.. _pip2014.com: http://pip2014.com/
-.. _pip install guide: http://www.pip-installer.org/en/latest/installing.html
 .. _~/.pydistutils.cfg: http://docs.python.org/install/index.html#distutils-configuration-files
 .. _virtualenv: http://pypi.python.org/pypi/virtualenv
+.. _packaging.python.org: https://packaging.python.org/installing/
 
 
 
@@ -293,7 +301,3 @@ Links
   high-level bindings module, rather similar to this one.
 
 * `pulseaudio-mixer-cli`_ - alsamixer-like script built on top of this module.
-
-
-
-.. _pulseaudio-mixer-cli: https://github.com/mk-fg/pulseaudio-mixer-cli/blob/master/pa-mixer-mk3.py
