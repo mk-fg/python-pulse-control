@@ -155,7 +155,7 @@ class PulseVolumeInfo(PulseObject):
 			(x / c.PA_VOLUME_NORM) for x in map(float, struct.values[:struct.channels]) )
 
 	@property
-	def value_flat(self): return sum(self.values) / float(len(self.values))
+	def value_flat(self): return (sum(self.values) / float(len(self.values))) if self.values else 0
 	@value_flat.setter
 	def value_flat(self, v): self.values = [v] * len(self.values)
 
