@@ -72,11 +72,11 @@ class PulseObject(object):
 				self.state = c.PA_OBJ_STATE_MAP.get(struct.state) or u'state.{}'.format(struct.state)
 				self.state_values = sorted(c.PA_OBJ_STATE_MAP.values())
 
-	def _copy_struct_fields(self, struct, fields=None):
+	def _copy_struct_fields(self, struct, fields=None, str_errors='strict'):
 		if not fields: fields = self.c_struct_fields
 		for k in fields:
-			setattr(self, k, c.force_str(
-				getattr(struct, k) if not isinstance(struct, dict) else struct[k] ))
+			setattr(self, k, c.force_str( getattr(struct, k)
+				if not isinstance(struct, dict) else struct[k], str_errors ))
 
 	def _as_str(self, ext=None, fields=None, **kws):
 		kws = list(it.starmap('{}={}'.format, kws.items()))

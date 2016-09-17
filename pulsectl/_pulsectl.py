@@ -8,8 +8,8 @@ import os, sys, functools as ft
 from ctypes import *
 
 
-def force_str(s): return s.decode('utf-8') if isinstance(s, bytes) else s
-def force_bytes(s): return s.encode('utf-8') if isinstance(s, unicode) else s
+force_str = lambda s, errors='strict': s.decode('utf-8', errors) if isinstance(s, bytes) else s
+force_bytes = lambda s, errors='strict': s.encode('utf-8', errors) if isinstance(s, unicode) else s
 
 if sys.version_info.major >= 3:
 	class c_str_p_type(object):
@@ -562,7 +562,7 @@ class LibPulse(object):
 					err = [func_name, args, res]
 					if args and isinstance(getattr(args[0], 'contents', None), PA_CONTEXT):
 						errno_ = self.context_errno(args[0])
-						err.append(self.strerror(errno_))
+						err.append('{} [pulse errno {}]'.format(self.strerror(errno_), errno_))
 					else: err.append('Return value check failed: {}'.format(res_proc))
 					raise self.CallError(*err)
 			elif res_proc: res = res_proc(res)
