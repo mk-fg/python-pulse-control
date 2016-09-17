@@ -319,9 +319,10 @@ class DummyTests(unittest.TestCase):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
 			self.assertIsNotNone(pulse.stream_restore_test())
 
-			pulse.stream_restore_write(sr_name1, 0.5, mute=True)
-			pulse.stream_restore_write( sr_name2, 0.3,
-				channel_list='mono', apply_immediately=True )
+			pulse.stream_restore_write(sr_name1, volume=0.5, mute=True)
+			pulse.stream_restore_write(
+				pulsectl.PulseExtStreamRestoreInfo(sr_name2, volume=0.3, channel_list='mono'),
+				apply_immediately=True )
 
 			sr_list = pulse.stream_restore_list()
 			self.assertIsInstance(sr_list, list)
@@ -338,22 +339,31 @@ class DummyTests(unittest.TestCase):
 			self.assertNotIn(sr_name1, sr_dict)
 			self.assertIn(sr_name2, sr_dict)
 
-			pulse.stream_restore_write( sr_name1, 0.7,
-				channel_list=['front-left', 'front-right'], mode='merge' )
-			pulse.stream_restore_write(sr_name1, 0.3, 'mono', mute=True) # ignored with mode=merge
+			pulse.stream_restore_write(
+				[ pulsectl.PulseExtStreamRestoreInfo( sr_name1,
+						volume=0.7, channel_list=['front-left', 'front-right'] ),
+					sr_dict[sr_name2] ],
+				mode='merge' )
+			pulse.stream_restore_write(sr_name1,
+				volume=0.3, channel_list='mono', mute=True )
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
 			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.7)
 			self.assertEqual(sr_dict[sr_name1].mute, 0)
 			self.assertEqual(sr_dict[sr_name1].channel_list, ['front-left', 'front-right'])
 
-			pulse.stream_restore_write(sr_name1, 0.4, mode='replace')
+			pulse.stream_restore_write(sr_name1, volume=0.4, mode='replace')
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
 			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.4)
 
-			pulse.stream_restore_write(sr_name2, 0.9, mode='set')
+			pulse.stream_restore_write(sr_name2, volume=0.9, mode='set')
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
 			self.assertEqual(sr_dict[sr_name2].volume.value_flat, 0.9)
 			self.assertEqual(list(sr_dict.keys()), [sr_name2])
+
+			pulse.stream_restore_write([], mode='set') # i.e. remove all
+			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
+			self.assertNotIn(sr_name1, sr_dict)
+			self.assertNotIn(sr_name2, sr_dict)
 
 
 if __name__ == '__main__': unittest.main()

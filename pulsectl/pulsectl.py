@@ -179,6 +179,33 @@ class PulseVolumeInfo(PulseObject):
 class PulseExtStreamRestoreInfo(PulseObject):
 	c_struct_fields = 'name channel_map volume mute device'
 
+	def __init__( self, struct_or_name=None,
+			volume=None, channel_list=None, mute=False, device=None ):
+		'''If string name is passed instead of C struct, will be initialized from args/kws.
+			"volume" can be either a float number
+				(same level for all channels) or list (value per channel).
+			"channel_list" can be a pulse channel map string (comma-separated) or list
+				of channel names. Defaults to stereo map, should probably match volume channels.
+			"device" - name of sink/source or None (default).'''
+		if is_str(struct_or_name):
+			chan_map = c.PA_CHANNEL_MAP()
+			if not channel_list: c.pa.channel_map_init_stereo(chan_map)
+			else:
+				if not is_str(channel_list):
+					channel_list = b','.join(map(c.force_bytes, channel_list))
+				c.pa.channel_map_parse(chan_map, channel_list)
+			restore_struct = c.PA_EXT_STREAM_RESTORE_INFO(
+				name=c.force_bytes(struct_or_name), mute=int(bool(mute)),
+				device=c.force_bytes(device), channel_map=chan_map,
+				volume=PulseVolumeInfo.struct_from_value(volume, chan_map.channels) )
+		else: # make a copy, as src one can be deallocated
+			restore_struct = c.PA_EXT_STREAM_RESTORE_INFO()
+			c.memmove(c.byref(restore_struct), c.byref(struct_or_name), c.sizeof(struct_or_name))
+		self.struct = restore_struct
+		super(PulseExtStreamRestoreInfo, self).__init__(restore_struct)
+
+	def to_struct(self): return self.struct
+
 	def __str__(self):
 		return self._as_str(self.volume, fields='name mute device')
 
@@ -528,34 +555,35 @@ class Pulse(object):
 	stream_restore_list = stream_restore_read # for consistency with other *_list methods
 
 	@ft.partial(_pulse_method_call, c.pa.ext_stream_restore_write, index_arg=False)
-	def stream_restore_write( name, volume, channel_list=None,
-			mode='merge', mute=False, device=None, apply_immediately=False ):
+	def stream_restore_write( obj_name_or_list,
+			mode='merge', apply_immediately=False, **obj_kws ):
 		'''Update module-stream-restore db entry for specified name.
-			"mode" is 'merge' (default), 'replace' or 'set' (replaces ALL entries!!!).
-			"volume" can be either a float number
-				(same level for all channels) or list (value per channel).
-			"channel_list" can be a pulse channel map string (comma-separated) or list
-				of channel names. Defaults to stereo map, should probably match volume channels.
-			"device" - name of sink/source or None (default).'''
-		# XXX: allow passing multiple (name, volume) tuples for mode=set to be useful
-		mode, chan_map = c.PA_UPDATE_MAP[mode], c.PA_CHANNEL_MAP()
-		if not channel_list: c.pa.channel_map_init_stereo(chan_map)
-		else:
-			if not isinstance(channel_list, (unicode, bytes)):
-				channel_list = b','.join(map(c.force_bytes, channel_list))
-			c.pa.channel_map_parse(chan_map, channel_list)
-		restore_struct = c.PA_EXT_STREAM_RESTORE_INFO(
-			name=c.force_bytes(name), mute=int(bool(mute)),
-			device=c.force_bytes(device), channel_map=chan_map,
-			volume=PulseVolumeInfo.struct_from_value(volume, chan_map.channels) )
-		return mode, c.pointer(restore_struct), 1, int(bool(apply_immediately))
+			Can be passed PulseExtStreamRestoreInfo object or list of them as argument,
+				or name string there and object init keywords (e.g. volume, mute, channel_list, etc).
+			"mode" is 'merge' (default), 'replace' or 'set' (replaces ALL entries!!!).'''
+		mode = c.PA_UPDATE_MAP[mode]
+		if is_str(obj_name_or_list):
+			obj_name_or_list = PulseExtStreamRestoreInfo(obj_name_or_list, **obj_kws)
+		if isinstance(obj_name_or_list, PulseExtStreamRestoreInfo):
+			obj_name_or_list = [obj_name_or_list]
+		# obj_array is an array of structs, laid out contiguously in memory, not pointers
+		obj_array = (c.PA_EXT_STREAM_RESTORE_INFO * len(obj_name_or_list))()
+		for n, obj in enumerate(obj_name_or_list):
+			obj_struct = obj.to_struct()
+			c.memmove(c.byref(obj_array[n]), c.byref(obj_struct), c.sizeof(obj_struct))
+		return mode, obj_array, len(obj_array), int(bool(apply_immediately))
 
 	@ft.partial(_pulse_method_call, c.pa.ext_stream_restore_delete, index_arg=False)
-	def stream_restore_delete(name_or_list):
-		if isinstance(name_or_list, (unicode, bytes)): name_or_list = [name_or_list]
-		names = (c.c_char_p * len(name_or_list))()
-		names[:] = list(map(c.force_bytes, name_or_list))
-		return [names]
+	def stream_restore_delete(obj_name_or_list):
+		'''Can be passed string name,
+			PulseExtStreamRestoreInfo object or a list of any of these.'''
+		if is_str(obj_name_or_list, PulseExtStreamRestoreInfo):
+			obj_name_or_list = [obj_name_or_list]
+		name_list = list((obj.name if isinstance( obj,
+			PulseExtStreamRestoreInfo ) else obj) for obj in obj_name_or_list)
+		name_struct = (c.c_char_p * len(name_list))()
+		name_struct[:] = list(map(c.force_bytes, name_list))
+		return [name_struct]
 
 
 	def default_set(self, obj):
