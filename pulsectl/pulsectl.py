@@ -21,7 +21,7 @@ else:
 is_str = lambda v,ext=None,native=False: (
 	isinstance(v, ( (unicode, bytes)
 		if not native else (str,) ) + ((ext,) if ext else ())) )
-is_native_str = ft.partial(is_str, native=True)
+is_str_native = ft.partial(is_str, native=True)
 is_num = lambda v: isinstance(v, (int, float, long))
 is_list = lambda v: isinstance(v, (tuple, list))
 
@@ -38,7 +38,7 @@ class PulseObject(object):
 
 	def __init__(self, struct=None, *field_data_list, **field_data_dict):
 		field_data, fields = dict(), getattr(self, 'c_struct_fields', list())
-		if is_native_str(fields): fields = self.c_struct_fields = fields.split()
+		if is_str_native(fields): fields = self.c_struct_fields = fields.split()
 		if field_data_list: field_data.update(zip(fields, field_data_list))
 		if field_data_dict: field_data.update(field_data_dict)
 		if struct is None: field_data, struct = dict(), field_data
@@ -81,7 +81,7 @@ class PulseObject(object):
 	def _as_str(self, ext=None, fields=None, **kws):
 		kws = list(it.starmap('{}={}'.format, kws.items()))
 		if fields:
-			if is_native_str(fields): fields = fields.split()
+			if is_str_native(fields): fields = fields.split()
 			kws.extend('{}={!r}'.format(k, getattr(self, k)) for k in fields)
 		kws = sorted(kws)
 		if ext: kws.append(str(ext))
