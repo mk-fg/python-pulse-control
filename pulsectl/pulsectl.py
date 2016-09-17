@@ -150,16 +150,14 @@ class PulseSourceOutputInfo(PulseObject):
 
 class PulseVolumeInfo(PulseObject):
 
-	@classmethod
-	def struct_from_value(cls, volume_or_list, channels=None):
-		if is_num(volume_or_list):
+	def __init__(self, struct_or_values=None, channels=None):
+		if is_num(struct_or_values):
 			assert channels is not None, 'Channel count specified if volume value is not a list.'
-			volume_or_list = [volume_or_list] * channels
-		return cls(values=volume_or_list).to_struct()
-
-	def __init__(self, struct=None, values=None):
-		self.values = values or list(
-			(x / c.PA_VOLUME_NORM) for x in map(float, struct.values[:struct.channels]) )
+			self.values = [struct_or_values] * channels
+		elif is_list(struct_or_values): self.values = struct_or_values
+		else:
+			self.values = list( (x / c.PA_VOLUME_NORM)
+				for x in map(float, struct_or_values.values[:struct_or_values.channels]) )
 
 	@property
 	def value_flat(self): return (sum(self.values) / float(len(self.values))) if self.values else 0
@@ -179,6 +177,24 @@ class PulseVolumeInfo(PulseObject):
 class PulseExtStreamRestoreInfo(PulseObject):
 	c_struct_fields = 'name channel_map volume mute device'
 
+	@classmethod
+	def struct_from_value( cls, name, volume,
+			channel_list=None, mute=False, device=None ):
+		'Same arguments as with class instance init.'
+		chan_map = c.PA_CHANNEL_MAP()
+		if not channel_list: c.pa.channel_map_init_stereo(chan_map)
+		else:
+			if not is_str(channel_list):
+				channel_list = b','.join(map(c.force_bytes, channel_list))
+			c.pa.channel_map_parse(chan_map, channel_list)
+		if not isinstance(volume, PulseVolumeInfo):
+			volume = PulseVolumeInfo(volume, chan_map.channels)
+		struct = c.PA_EXT_STREAM_RESTORE_INFO(
+			name=c.force_bytes(name),
+			mute=int(bool(mute)), device=c.force_bytes(device),
+			channel_map=chan_map, volume=volume.to_struct() )
+		return struct
+
 	def __init__( self, struct_or_name=None,
 			volume=None, channel_list=None, mute=False, device=None ):
 		'''If string name is passed instead of C struct, will be initialized from args/kws.
@@ -188,23 +204,13 @@ class PulseExtStreamRestoreInfo(PulseObject):
 				of channel names. Defaults to stereo map, should probably match volume channels.
 			"device" - name of sink/source or None (default).'''
 		if is_str(struct_or_name):
-			chan_map = c.PA_CHANNEL_MAP()
-			if not channel_list: c.pa.channel_map_init_stereo(chan_map)
-			else:
-				if not is_str(channel_list):
-					channel_list = b','.join(map(c.force_bytes, channel_list))
-				c.pa.channel_map_parse(chan_map, channel_list)
-			restore_struct = c.PA_EXT_STREAM_RESTORE_INFO(
-				name=c.force_bytes(struct_or_name), mute=int(bool(mute)),
-				device=c.force_bytes(device), channel_map=chan_map,
-				volume=PulseVolumeInfo.struct_from_value(volume, chan_map.channels) )
-		else: # make a copy, as src one can be deallocated
-			restore_struct = c.PA_EXT_STREAM_RESTORE_INFO(
-				**dict((k, getattr(struct_or_name, k)) for k,t in struct_or_name._fields_) )
-		self.struct = restore_struct
-		super(PulseExtStreamRestoreInfo, self).__init__(restore_struct)
+			struct_or_name = self.struct_from_value(
+				struct_or_name, volume, channel_list, mute, device )
+		super(PulseExtStreamRestoreInfo, self).__init__(struct_or_name)
 
-	def to_struct(self): return self.struct
+	def to_struct(self):
+		return self.struct_from_value(**dict(
+			(k, getattr(self, k)) for k in 'name volume channel_list mute device'.split() ))
 
 	def __str__(self):
 		return self._as_str(self.volume, fields='name mute device')
