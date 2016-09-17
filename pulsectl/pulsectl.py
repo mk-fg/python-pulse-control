@@ -199,8 +199,8 @@ class PulseExtStreamRestoreInfo(PulseObject):
 				device=c.force_bytes(device), channel_map=chan_map,
 				volume=PulseVolumeInfo.struct_from_value(volume, chan_map.channels) )
 		else: # make a copy, as src one can be deallocated
-			restore_struct = c.PA_EXT_STREAM_RESTORE_INFO()
-			c.memmove(c.byref(restore_struct), c.byref(struct_or_name), c.sizeof(struct_or_name))
+			restore_struct = c.PA_EXT_STREAM_RESTORE_INFO(
+				**dict((k, getattr(struct_or_name, k)) for k,t in struct_or_name._fields_) )
 		self.struct = restore_struct
 		super(PulseExtStreamRestoreInfo, self).__init__(restore_struct)
 
@@ -569,8 +569,8 @@ class Pulse(object):
 		# obj_array is an array of structs, laid out contiguously in memory, not pointers
 		obj_array = (c.PA_EXT_STREAM_RESTORE_INFO * len(obj_name_or_list))()
 		for n, obj in enumerate(obj_name_or_list):
-			obj_struct = obj.to_struct()
-			c.memmove(c.byref(obj_array[n]), c.byref(obj_struct), c.sizeof(obj_struct))
+			obj_struct, dst_struct = obj.to_struct(), obj_array[n]
+			for k,t in obj_struct._fields_: setattr(dst_struct, k, getattr(obj_struct, k))
 		return mode, obj_array, len(obj_array), int(bool(apply_immediately))
 
 	@ft.partial(_pulse_method_call, c.pa.ext_stream_restore_delete, index_arg=False)
