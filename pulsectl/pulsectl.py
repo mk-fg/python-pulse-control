@@ -18,6 +18,13 @@ else:
 		print(*args, **kws)
 		kws['file'].flush()
 
+is_str = lambda v,ext=None,native=False: (
+	isinstance(v, ( (unicode, bytes)
+		if not native else (str,) ) + ((ext,) if ext else ())) )
+is_native_str = ft.partial(is_str, native=True)
+is_num = lambda v: isinstance(v, (int, float, long))
+is_list = lambda v: isinstance(v, (tuple, list))
+
 
 class PulseError(Exception): pass
 class PulseOperationFailed(PulseError): pass
@@ -31,7 +38,7 @@ class PulseObject(object):
 
 	def __init__(self, struct=None, *field_data_list, **field_data_dict):
 		field_data, fields = dict(), getattr(self, 'c_struct_fields', list())
-		if isinstance(fields, str): fields = self.c_struct_fields = fields.split()
+		if is_native_str(fields): fields = self.c_struct_fields = fields.split()
 		if field_data_list: field_data.update(zip(fields, field_data_list))
 		if field_data_dict: field_data.update(field_data_dict)
 		if struct is None: field_data, struct = dict(), field_data
@@ -74,7 +81,7 @@ class PulseObject(object):
 	def _as_str(self, ext=None, fields=None, **kws):
 		kws = list(it.starmap('{}={}'.format, kws.items()))
 		if fields:
-			if isinstance(fields, str): fields = fields.split()
+			if is_native_str(fields): fields = fields.split()
 			kws.extend('{}={!r}'.format(k, getattr(self, k)) for k in fields)
 		kws = sorted(kws)
 		if ext: kws.append(str(ext))
@@ -145,7 +152,7 @@ class PulseVolumeInfo(PulseObject):
 
 	@classmethod
 	def struct_from_value(cls, volume_or_list, channels=None):
-		if isinstance(volume_or_list, (int, float, long)):
+		if is_num(volume_or_list):
 			assert channels is not None, 'Channel count specified if volume value is not a list.'
 			volume_or_list = [volume_or_list] * channels
 		return cls(values=volume_or_list).to_struct()
@@ -435,7 +442,7 @@ class Pulse(object):
 				if 'index' in kws: index = kws.pop('index')
 				else: index, args = args[0], args[1:]
 			pulse_args = func(*args, **kws) if func else list()
-			if not isinstance(pulse_args, (tuple, list)): pulse_args = [pulse_args]
+			if not is_list(pulse_args): pulse_args = [pulse_args]
 			if index_arg: pulse_args = [index] + list(pulse_args)
 			with self._pulse_op_cb() as cb:
 				try: pulse_op(self._ctx, *(list(pulse_args) + [cb, None]))
@@ -490,7 +497,7 @@ class Pulse(object):
 
 
 	def module_load(self, name, args=''):
-		if isinstance(args, (tuple, list)): args = ' '.join(args)
+		if is_list(args): args = ' '.join(args)
 		name, args = map(c.force_bytes, [name, args])
 		data = list()
 		with self._pulse_op_cb(raw=True) as cb:
@@ -670,10 +677,10 @@ def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, re
 		pid_path, sock_af, sock_t = None, socket.AF_UNIX, socket.SOCK_STREAM
 		if not server: server, pid_path = map(c.pa.runtime_path, ['cli', 'pid'])
 		else:
-			if not isinstance(server, tuple):
+			if not is_list(server):
 				server = c.force_str(server)
 				if not server.startswith('/'): server = server, 4712 # default port
-			if isinstance(server, tuple):
+			if is_list(server):
 				try:
 					addrinfo = socket.getaddrinfo(
 						server[0], server[1], 0, sock_t, socket.IPPROTO_TCP )
