@@ -95,7 +95,7 @@ class PulseObject(object):
 
 
 class PulsePortInfo(PulseObject):
-	c_struct_fields = 'name description priority active'
+	c_struct_fields = 'name description priority available'
 
 	def __eq__(self, o):
 		if not isinstance(o, PulsePortInfo): raise TypeError(o)

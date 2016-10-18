@@ -137,7 +137,7 @@ class PA_PORT_INFO(Structure):
 		('name', c_char_p),
 		('description', c_char_p),
 		('priority', c_uint32),
-		('active', c_int),
+		('available', c_int),
 	]
 
 class PA_SINK_INPUT_INFO(Structure):
