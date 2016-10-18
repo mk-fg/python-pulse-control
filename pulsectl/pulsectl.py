@@ -162,7 +162,7 @@ class PulsePortInfo(PulseObject):
 	c_struct_fields = 'name description priority'
 
 	def _init_from_struct(self, struct):
-		self.available_state = c.PA_PORT_AVAILABLE_MAP[struct.available]
+		self.available_state = PulsePortAvailableEnum._c_val(struct.available)
 
 	def __eq__(self, o):
 		if not isinstance(o, PulsePortInfo): raise TypeError(o)
