@@ -129,6 +129,17 @@ class DummyTests(unittest.TestCase):
 		self.addTypeEqualityFunc(float, self._compare_floats)
 
 
+	def test_enums(self):
+		enum = pulsectl.PulseEventFacilityEnum
+
+		ev_fac_map = dict(sink='sink', sink_input='stream') # hash should match strings
+		self.assertTrue(ev_fac_map.get(enum.sink))
+		self.assertTrue(ev_fac_map.get(enum.sink_input))
+
+		self.assertEqual(enum.sink, 'sink')
+		self.assertEqual(enum['sink'], 'sink')
+		self.assertTrue('sink' in enum)
+
 	def test_connect(self):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse: si = pulse.server_info()
 		with pulsectl.Pulse('t', server=self.sock_tcp4) as pulse: si4 = pulse.server_info()

@@ -24,6 +24,66 @@ is_str = lambda v,ext=None,native=False: (
 is_str_native = ft.partial(is_str, native=True)
 is_num = lambda v: isinstance(v, (int, float, long))
 is_list = lambda v: isinstance(v, (tuple, list))
+is_dict = lambda v: isinstance(v, dict)
+
+
+@ft.total_ordering
+class EnumValue(object):
+	'String-based enum value, comparable to native strings.'
+	__slots__ = '_t', '_value', '_c_val'
+	def __init__(self, t, value, c_value=None):
+		self._t, self._value, self._c_val = t, value, c_value
+	def __repr__(self): return '<EnumValue {} {}>'.format(self._t, self._value)
+	def __eq__(self, val):
+		if isinstance(val, EnumValue): val = val._value
+		return self._value == val
+	def __ne__(self, val): return not (self == val)
+	def __lt__(self, val):
+		if isinstance(val, EnumValue): val = val._value
+		return self._value < val
+	def __hash__(self): return hash(self._value)
+
+class Enum(object):
+
+	def __init__(self, name, values_or_map):
+		vals = values_or_map
+		if is_str_native(vals): vals = vals.split()
+		if is_list(vals): vals = zip(it.repeat(None), vals)
+		if is_dict(vals): vals = vals.items()
+		self._name, self._values, self._c_vals = name, dict(), dict()
+		for c_val, k in vals:
+			v = EnumValue(name, k, c_val)
+			setattr(self, k, v)
+			self._c_vals[c_val] = self._values[k] = v
+
+	def __getitem__(self, k, *default):
+		if isinstance(k, EnumValue):
+			t, k, v = k._t, k._value, k
+			if t != self._name: raise KeyError(v)
+		try: return getattr(self, k, *default)
+		except AttributeError: raise KeyError(k)
+
+	def _get(self, k, default=None): return self.__getitem__(k, default)
+	def __contains__(self, k): return self._get(k) is not None
+
+	def _c_val(self, c_val, default=KeyError):
+		v = self._c_vals.get(c_val)
+		if v is not None: return v
+		if default is not KeyError:
+			return EnumValue(self._name, default, c_val)
+		raise KeyError(c_val)
+
+	def __repr__(self):
+		return '<Enum {} [{}]>'.format(self._name, ' '.join(self._values.keys()))
+
+
+PulseEventTypeEnum = Enum('event-type', c.PA_EVENT_TYPE_MAP)
+PulseEventFacilityEnum = Enum('event-facility', c.PA_EVENT_FACILITY_MAP)
+PulseEventMaskEnum = Enum('event-mask', c.PA_EVENT_MASK_MAP)
+
+PulseStateEnum = Enum('sink/source-state', c.PA_OBJ_STATE_MAP)
+PulseUpdateEnum = Enum('update-type', c.PA_UPDATE_MAP)
+PulsePortAvailableEnum = Enum('available-state', c.PA_PORT_AVAILABLE_MAP)
 
 
 class PulseError(Exception): pass
@@ -69,15 +129,16 @@ class PulseObject(object):
 				self.channel_count = struct.channel_map.channels
 				self.channel_list = s if len(s) == self.channel_count else None
 			if hasattr(struct, 'state'):
-				self.state = c.PA_OBJ_STATE_MAP.get(struct.state) or u'state.{}'.format(struct.state)
-				self.state_values = sorted(c.PA_OBJ_STATE_MAP.values())
+				self.state = PulseStateEnum._c_val(
+					struct.state, u'state.{}'.format(struct.state) )
+				self.state_values = sorted(PulseStateEnum._values.values())
 			self._init_from_struct(struct)
 
 	def _copy_struct_fields(self, struct, fields=None, str_errors='strict'):
 		if not fields: fields = self.c_struct_fields
 		for k in fields:
 			setattr(self, k, c.force_str( getattr(struct, k)
-				if not isinstance(struct, dict) else struct[k], str_errors ))
+				if not is_dict(struct) else struct[k], str_errors ))
 
 	def _init_from_struct(self, struct): pass # to parse fields in subclasses
 
@@ -270,22 +331,9 @@ class Pulse(object):
 		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
 
 		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
-		self._pa_subscribe_ev_t = dict(
-			(getattr(c, 'PA_SUBSCRIPTION_EVENT_{}'.format(k.upper())), c.force_str(k))
-			for k in 'new change remove'.split() )
-		self._pa_subscribe_ev_fac, self._pa_subscribe_masks = dict(), dict()
-		for k, n in vars(c).items():
-			if k.startswith('PA_SUBSCRIPTION_EVENT_'):
-				if k.endswith('_MASK'): continue
-				k = c.force_str(k[22:].lower())
-				if k in self._pa_subscribe_ev_t.values(): continue
-				assert n & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK == n, [k, n]
-				self._pa_subscribe_ev_fac[n] = k
-			elif k.startswith('PA_SUBSCRIPTION_MASK_'):
-				self._pa_subscribe_masks[c.force_str(k[21:].lower())] = n
-		self.event_types = sorted(self._pa_subscribe_ev_t.values())
-		self.event_facilities = sorted(self._pa_subscribe_ev_fac.values())
-		self.event_masks = sorted(self._pa_subscribe_masks.keys())
+		self.event_types = sorted(PulseEventTypeEnum._values.values())
+		self.event_facilities = sorted(PulseEventFacilityEnum._values.values())
+		self.event_masks = sorted(PulseEventMaskEnum._values.values())
 		self.event_callback = None
 
 	def connect(self, autospawn=False, wait=False):
@@ -333,9 +381,9 @@ class Pulse(object):
 	def _pulse_subscribe_cb(self, ctx, ev, idx, userdata):
 		if not self.event_callback: return
 		n = ev & c.PA_SUBSCRIPTION_EVENT_FACILITY_MASK
-		ev_fac = self._pa_subscribe_ev_fac.get(n) or 'ev.facility.{}'.format(n)
+		ev_fac = PulseEventFacilityEnum._c_val(n, 'ev.facility.{}'.format(n))
 		n = ev & c.PA_SUBSCRIPTION_EVENT_TYPE_MASK
-		ev_t = self._pa_subscribe_ev_t.get(n) or 'ev.type.{}'.format(n)
+		ev_t = PulseEventTypeEnum._c_val(n, 'ev.type.{}'.format(n))
 		try: self.event_callback(PulseEventInfo(ev_t, ev_fac, idx))
 		except PulseLoopStop: self._loop_stop = True
 
@@ -572,8 +620,9 @@ class Pulse(object):
 		'''Update module-stream-restore db entry for specified name.
 			Can be passed PulseExtStreamRestoreInfo object or list of them as argument,
 				or name string there and object init keywords (e.g. volume, mute, channel_list, etc).
-			"mode" is 'merge' (default), 'replace' or 'set' (replaces ALL entries!!!).'''
-		mode = c.PA_UPDATE_MAP[mode]
+			"mode" is PulseUpdateEnum value of
+				'merge' (default), 'replace' or 'set' (replaces ALL entries!!!).'''
+		mode = PulseUpdateEnum[mode]._c_val
 		if is_str(obj_name_or_list):
 			obj_name_or_list = PulseExtStreamRestoreInfo(obj_name_or_list, **obj_kws)
 		if isinstance(obj_name_or_list, PulseExtStreamRestoreInfo):
@@ -652,7 +701,7 @@ class Pulse(object):
 
 	def event_mask_set(self, *masks):
 		mask = 0
-		for m in masks: mask |= self._pa_subscribe_masks[m]
+		for m in masks: mask |= PulseEventMaskEnum[m]._c_val
 		with self._pulse_op_cb() as cb:
 			c.pa.context_subscribe(self._ctx, mask, cb, None)
 

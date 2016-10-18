@@ -95,15 +95,35 @@ PA_SUBSCRIPTION_EVENT_CHANGE = 0x0010
 PA_SUBSCRIPTION_EVENT_REMOVE = 0x0020
 PA_SUBSCRIPTION_EVENT_TYPE_MASK = 0x0030
 
+def c_enum_map(**values):
+	return dict((v, force_str(k)) for k,v in values.items())
+
+_globals = globals().copy()
+_pa_ev_type = dict(
+	(force_str(k), _globals['PA_SUBSCRIPTION_EVENT_{}'.format(k.upper())])
+	for k in 'new change remove'.split() )
+_pa_ev_fac, _pa_ev_mask = dict(), dict()
+for k, n in _globals.items():
+	if k.startswith('PA_SUBSCRIPTION_EVENT_'):
+		if k.endswith('_MASK'): continue
+		k = force_str(k[22:].lower())
+		if k in _pa_ev_type: continue
+		assert n & PA_SUBSCRIPTION_EVENT_FACILITY_MASK == n, [k, n]
+		_pa_ev_fac[k] = n
+	elif k.startswith('PA_SUBSCRIPTION_MASK_'):
+		_pa_ev_mask[force_str(k[21:].lower())] = n
+
+PA_EVENT_TYPE_MAP = c_enum_map(**_pa_ev_type)
+PA_EVENT_FACILITY_MAP = c_enum_map(**_pa_ev_fac)
+PA_EVENT_MASK_MAP = c_enum_map(**_pa_ev_mask)
+del _globals, _pa_ev_type, _pa_ev_fac, _pa_ev_mask
+
+PA_UPDATE_MAP = c_enum_map(set=0, merge=1, replace=2)
+PA_PORT_AVAILABLE_MAP = c_enum_map(unknown=0, no=1, yes=2)
+
 # These are defined separately as
 #  pa_sink_state / pa_source_state, but seem to match.
-PA_OBJ_STATE_MAP = dict( (v, force_str(k))
-	for k,v in dict(invalid=-1, running=0, idle=1, suspended=2).items() )
-
-PA_UPDATE_MAP = dict(set=0, merge=1, replace=2)
-
-PA_PORT_AVAILABLE_MAP = dict(
-	(v, force_str(k)) for k,v in dict(unknown=0, no=1, yes=2).items() )
+PA_OBJ_STATE_MAP = c_enum_map(invalid=-1, running=0, idle=1, suspended=2)
 
 
 class PA_MAINLOOP(Structure): pass

@@ -7,5 +7,9 @@ from .pulsectl import (
 	PulseCardInfo, PulseClientInfo, PulsePortInfo, PulseVolumeInfo,
 	PulseSinkInfo, PulseSinkInputInfo, PulseSourceInfo, PulseSourceOutputInfo,
 	PulseExtStreamRestoreInfo, PulseEventInfo,
+
+	PulseEventTypeEnum, PulseEventFacilityEnum, PulseEventMaskEnum,
+	PulseStateEnum, PulseUpdateEnum, PulsePortAvailableEnum,
+
 	PulseError, PulseIndexError, PulseOperationFailed, PulseOperationInvalid,
 	PulseLoopStop, PulseDisconnected, PulseObject, Pulse, connect_to_cli )
