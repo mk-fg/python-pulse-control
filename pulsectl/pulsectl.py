@@ -71,12 +71,15 @@ class PulseObject(object):
 			if hasattr(struct, 'state'):
 				self.state = c.PA_OBJ_STATE_MAP.get(struct.state) or u'state.{}'.format(struct.state)
 				self.state_values = sorted(c.PA_OBJ_STATE_MAP.values())
+			self._init_from_struct(struct)
 
 	def _copy_struct_fields(self, struct, fields=None, str_errors='strict'):
 		if not fields: fields = self.c_struct_fields
 		for k in fields:
 			setattr(self, k, c.force_str( getattr(struct, k)
 				if not isinstance(struct, dict) else struct[k], str_errors ))
+
+	def _init_from_struct(self, struct): pass # to parse fields in subclasses
 
 	def _as_str(self, ext=None, fields=None, **kws):
 		kws = list(it.starmap('{}={}'.format, kws.items()))
@@ -95,7 +98,10 @@ class PulseObject(object):
 
 
 class PulsePortInfo(PulseObject):
-	c_struct_fields = 'name description priority available'
+	c_struct_fields = 'name description priority'
+
+	def _init_from_struct(self, struct):
+		self.available_state = c.PA_PORT_AVAILABLE_MAP[struct.available]
 
 	def __eq__(self, o):
 		if not isinstance(o, PulsePortInfo): raise TypeError(o)

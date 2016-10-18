@@ -102,6 +102,9 @@ PA_OBJ_STATE_MAP = dict( (v, force_str(k))
 
 PA_UPDATE_MAP = dict(set=0, merge=1, replace=2)
 
+PA_PORT_AVAILABLE_MAP = dict(
+	(v, force_str(k)) for k,v in dict(unknown=0, no=1, yes=2).items() )
+
 
 class PA_MAINLOOP(Structure): pass
 class PA_STREAM(Structure): pass
