@@ -181,7 +181,7 @@ For example::
   >>> pulsectl.PulseEventTypeEnum.change
   <EnumValue event-type change>
   >>> pulsectl.PulseEventTypeEnum
-  <Enum event-type [remove new change]>
+  <Enum event-type [change new remove]>
 
 It might be preferrable to use enums instead of strings in the code so that
 interpreter can signal error on any typos or unknown values specified, as

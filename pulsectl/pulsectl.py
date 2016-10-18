@@ -74,7 +74,7 @@ class Enum(object):
 		raise KeyError(c_val)
 
 	def __repr__(self):
-		return '<Enum {} [{}]>'.format(self._name, ' '.join(self._values.keys()))
+		return '<Enum {} [{}]>'.format(self._name, ' '.join(sorted(self._values.keys())))
 
 
 PulseEventTypeEnum = Enum('event-type', c.PA_EVENT_TYPE_MAP)
