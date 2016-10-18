@@ -301,3 +301,11 @@ Links
   high-level bindings module, rather similar to this one.
 
 * `pulseaudio-mixer-cli`_ - alsamixer-like script built on top of this module.
+
+
+
+TODO
+----
+
+* Replace use of all state/type strings with proper enum values that can be
+  compared to them (for compatibility with any existing code).
