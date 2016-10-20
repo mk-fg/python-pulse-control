@@ -755,7 +755,7 @@ def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, re
 		Returned file object has line-buffered output,
 			so there should be no need to use flush() after every command.
 		Be sure to read from the socket line-by-line until
-			"### EOF" or timeout for commands that have output (e.g. "dump\n").
+			"### EOF" or timeout for commands that have output (e.g. "dump\\n").
 		If default server socket is used (i.e. not specified),
 			server pid will be signaled to load module-cli between connection attempts.
 		Completely separate protocol from the regular API, as wrapped by libpulse.
