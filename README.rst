@@ -280,6 +280,9 @@ Or, if you don't have "pip" command::
 
 On a very old systems, one of these might work::
 
+  % curl https://bootstrap.pypa.io/get-pip.py | python
+  % pip install pulsectl
+
   % easy_install pulsectl
 
   % git clone --depth=1 https://github.com/mk-fg/python-pulse-control
