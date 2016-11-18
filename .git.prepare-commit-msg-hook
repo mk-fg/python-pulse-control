@@ -1,0 +1,21 @@
+#!/bin/bash
+[[ -z "$1" ]] && exit 0
+
+tmp="$1".hook-tmp
+
+cp "$1" "$tmp"
+sed -i '/^[[:space:]]*\(#\|$\)/d' "$1"
+sed -i '/^[[:space:]]*\(#\|$\)/!d' "$tmp"
+[[ -s "$1" ]] || echo >"$1"
+
+echo >>"$1"
+echo '# ¯\_ ⅁OꞀƎ⅁NⱯHƆ Ǝ⊥ⱯᗡԀ∩ O⊥ ⊥Ǝ⅁ᴚOᖵ ⊥ON Oᗡ _/¯' >>"$1"
+echo '#' >>"$1"
+
+echo '#' >>"$1"
+sed -i '/^[[:space:]]*$/d' "$tmp"
+cat "$tmp" >> "$1"
+rm -f "$tmp"
+
+echo '# Previous commits:' >>"$1"
+git log -10 --format='#   %s' >>"$1"
