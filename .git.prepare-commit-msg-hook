@@ -5,7 +5,6 @@ tmp="$1".hook-tmp
 
 cp "$1" "$tmp"
 sed -i '/^[[:space:]]*\(#\|$\)/d' "$1"
-sed -i '/^[[:space:]]*\(#\|$\)/!d' "$tmp"
 [[ -s "$1" ]] || echo >"$1"
 
 echo >>"$1"
@@ -13,7 +12,7 @@ echo '# ¯\_ ⅁OꞀƎ⅁NⱯHƆ Ǝ⊥ⱯᗡԀ∩ O⊥ ⊥Ǝ⅁ᴚOᖵ ⊥ON O�
 echo '#' >>"$1"
 
 echo '#' >>"$1"
-sed -i '/^[[:space:]]*$/d' "$tmp"
+sed -i '/^[[:space:]]*#/!d' "$tmp"
 cat "$tmp" >> "$1"
 rm -f "$tmp"
 
