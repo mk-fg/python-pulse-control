@@ -687,16 +687,18 @@ class Pulse(object):
 		obj.volume = vol
 
 	def volume_set_all_chans(self, obj, vol):
-		obj.volume.values = [vol for v in obj.volume.values]
+		assert isinstance(obj, PulseObject), [type(obj), obj]
+		obj.volume.value_flat = vol
 		self.volume_set(obj, obj.volume)
 
 	def volume_change_all_chans(self, obj, inc):
+		assert isinstance(obj, PulseObject), [type(obj), obj]
 		obj.volume.values = [max(0, v + inc) for v in obj.volume.values]
 		self.volume_set(obj, obj.volume)
 
 	def volume_get_all_chans(self, obj):
 		assert isinstance(obj, PulseObject), [type(obj), obj]
-		return sum(obj.volume.values) / len(obj.volume.values)
+		return obj.volume.value_flat
 
 
 	def event_mask_set(self, *masks):

@@ -132,8 +132,26 @@ are not only subject to change, but can also vary depending on system locale.
 Volume
 ``````
 
-All volume values in this module are float objects in 0-65536 range, with
-following meaning:
+In PulseAudio, "volume" for anything is not a flat number, but essentially a
+list of numbers, one per channel (as in "left", "right", "front", "rear", etc),
+which should correspond to channel map of the object it relates/is-applied to.
+
+In this module, such lists are represented by PulseVolumeInfo objects.
+
+I.e. ``sink.volume`` is a PulseVolumeInfo instance, and all thin/simple wrappers
+that accept index of the object, expect such instance to be passed, e.g.
+``pulse.sink_input_volume_set(sink.index, sink.volume)``.
+
+There are convenience ``volume_get_all_chans``, ``volume_set_all_chans`` and
+``volume_change_all_chans`` methods to get/set/adjust volume as/by a single
+numeric value, which is also accessible on PulseVolumeInfo objects as a
+``value_flat`` property.
+
+PulseVolumeInfo can be constructed from a numeric volume value plus number of
+channels, or a python list of per-channel numbers.
+
+All per-channel volume values in PulseVolumeInfo (and flat values in the wrapper
+funcs above), are float objects in 0-65536 range, with following meaning:
 
 * 0.0 volume is "no sound" or PA_VOLUME_MUTED.
 
