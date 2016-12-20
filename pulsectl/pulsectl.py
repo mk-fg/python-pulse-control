@@ -249,7 +249,7 @@ class PulseExtStreamRestoreInfo(PulseObject):
 			channel_list=None, mute=False, device=None ):
 		'Same arguments as with class instance init.'
 		chan_map = c.PA_CHANNEL_MAP()
-		if not channel_list: c.pa.channel_map_init_stereo(chan_map)
+		if not channel_list: c.pa.channel_map_init_mono(chan_map)
 		else:
 			if not is_str(channel_list):
 				channel_list = b','.join(map(c.force_bytes, channel_list))

@@ -341,7 +341,7 @@ class DummyTests(unittest.TestCase):
 			sr_dict = dict((sr.name, sr) for sr in sr_list)
 			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.5)
 			self.assertEqual(sr_dict[sr_name1].mute, 1)
-			self.assertEqual(sr_dict[sr_name1].channel_list, ['front-left', 'front-right'])
+			self.assertEqual(sr_dict[sr_name1].channel_list, ['mono'])
 			self.assertIn(sr_name2, sr_dict)
 			self.assertEqual(sr_dict[sr_name2].channel_list, ['mono'])
 
