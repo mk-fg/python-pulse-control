@@ -123,11 +123,11 @@ class PulseObject(object):
 				self.port_active = None if not struct.active_port\
 					else PulsePortInfo(struct.active_port.contents)
 			if hasattr(struct, 'channel_map'):
-				s = c.create_string_buffer(b'\0' * 512)
-				c.pa.channel_map_snprint(s, len(s), struct.channel_map)
-				s = list(map(c.force_str, s.value.strip().split(b',')))
-				self.channel_count = struct.channel_map.channels
-				self.channel_list = s if len(s) == self.channel_count else None
+				self.channel_count, self.channel_list = struct.channel_map.channels, list()
+				if self.channel_count > 0:
+					s = c.create_string_buffer(b'\0' * 512)
+					c.pa.channel_map_snprint(s, len(s), struct.channel_map)
+					self.channel_list.extend(map(c.force_str, s.value.strip().split(b',')))
 			if hasattr(struct, 'state'):
 				self.state = PulseStateEnum._c_val(
 					struct.state, u'state.{}'.format(struct.state) )
