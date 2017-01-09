@@ -95,35 +95,93 @@ PA_SUBSCRIPTION_EVENT_CHANGE = 0x0010
 PA_SUBSCRIPTION_EVENT_REMOVE = 0x0020
 PA_SUBSCRIPTION_EVENT_TYPE_MASK = 0x0030
 
+PA_ENCODING_ANY = 0
+PA_ENCODING_PCM = 1
+PA_ENCODING_AC3_IEC61937 = 2
+PA_ENCODING_EAC3_IEC61937 = 3
+PA_ENCODING_MPEG_IEC61937 = 4
+PA_ENCODING_DTS_IEC61937 = 5
+PA_ENCODING_MPEG2_AAC_IEC61937 = 6
+PA_ENCODING_INVALID = -1
+
+PA_SAMPLE_U8 = 0
+PA_SAMPLE_ALAW = 1
+PA_SAMPLE_ULAW = 2
+PA_SAMPLE_S16LE = 3
+PA_SAMPLE_S16BE = 4
+PA_SAMPLE_FLOAT32LE = 5
+PA_SAMPLE_FLOAT32BE = 6
+PA_SAMPLE_S32LE = 7
+PA_SAMPLE_S32BE = 8
+PA_SAMPLE_S24LE = 9
+PA_SAMPLE_S24BE = 10
+PA_SAMPLE_S24_32LE = 11
+PA_SAMPLE_S24_32BE = 12
+PA_SAMPLE_INVALID = -1
+
+PA_STREAM_NOFLAGS = 0x0000
+PA_STREAM_START_CORKED = 0x0001
+PA_STREAM_INTERPOLATE_TIMING = 0x0002
+PA_STREAM_NOT_MONOTONIC = 0x0004
+PA_STREAM_AUTO_TIMING_UPDATE = 0x0008
+PA_STREAM_NO_REMAP_CHANNELS = 0x0010
+PA_STREAM_NO_REMIX_CHANNELS = 0x0020
+PA_STREAM_FIX_FORMAT = 0x0040
+PA_STREAM_FIX_RATE = 0x0080
+PA_STREAM_FIX_CHANNELS = 0x0100
+PA_STREAM_DONT_MOVE = 0x0200
+PA_STREAM_VARIABLE_RATE = 0x0400
+PA_STREAM_PEAK_DETECT = 0x0800
+PA_STREAM_START_MUTED = 0x1000
+PA_STREAM_ADJUST_LATENCY = 0x2000
+PA_STREAM_EARLY_REQUESTS = 0x4000
+PA_STREAM_DONT_INHIBIT_AUTO_SUSPEND = 0x8000
+PA_STREAM_START_UNMUTED = 0x10000
+PA_STREAM_FAIL_ON_SUSPEND = 0x20000
+PA_STREAM_RELATIVE_VOLUME = 0x40000
+PA_STREAM_PASSTHROUGH = 0x80000
+
 def c_enum_map(**values):
 	return dict((v, force_str(k)) for k,v in values.items())
 
 _globals = globals().copy()
-_pa_ev_type = dict(
+
+PA_STREAM_FLAGS = dict()
+PA_ENCODING_MAP, PA_SAMPLE_MAP = dict(), dict()
+PA_EVENT_FACILITY_MAP, PA_EVENT_MASK_MAP = dict(), dict()
+PA_EVENT_TYPE_MAP = dict(
 	(force_str(k), _globals['PA_SUBSCRIPTION_EVENT_{}'.format(k.upper())])
 	for k in 'new change remove'.split() )
-_pa_ev_fac, _pa_ev_mask = dict(), dict()
+
 for k, n in _globals.items():
 	if k.startswith('PA_SUBSCRIPTION_EVENT_'):
 		if k.endswith('_MASK'): continue
 		k = force_str(k[22:].lower())
-		if k in _pa_ev_type: continue
+		if k in PA_EVENT_TYPE_MAP: continue
 		assert n & PA_SUBSCRIPTION_EVENT_FACILITY_MASK == n, [k, n]
-		_pa_ev_fac[k] = n
+		PA_EVENT_FACILITY_MAP[k] = n
 	elif k.startswith('PA_SUBSCRIPTION_MASK_'):
-		_pa_ev_mask[force_str(k[21:].lower())] = n
+		PA_EVENT_MASK_MAP[force_str(k[21:].lower())] = n
+	elif k.startswith('PA_ENCODING_'): PA_ENCODING_MAP[k[12:].lower()] = n
+	elif k.startswith('PA_SAMPLE_'): PA_SAMPLE_MAP[k[10:].lower()] = n
+	elif k.startswith('PA_STREAM_'): PA_STREAM_FLAGS[k[10:].lower()] = n
 
-PA_EVENT_TYPE_MAP = c_enum_map(**_pa_ev_type)
-PA_EVENT_FACILITY_MAP = c_enum_map(**_pa_ev_fac)
-PA_EVENT_MASK_MAP = c_enum_map(**_pa_ev_mask)
-del _globals, _pa_ev_type, _pa_ev_fac, _pa_ev_mask
+PA_STREAM_FLAGS = c_enum_map(**PA_STREAM_FLAGS)
+PA_ENCODING_MAP = c_enum_map(**PA_ENCODING_MAP)
+PA_SAMPLE_MAP = c_enum_map(**PA_SAMPLE_MAP)
+PA_EVENT_TYPE_MAP = c_enum_map(**PA_EVENT_TYPE_MAP)
+PA_EVENT_FACILITY_MAP = c_enum_map(**PA_EVENT_FACILITY_MAP)
+PA_EVENT_MASK_MAP = c_enum_map(**PA_EVENT_MASK_MAP)
 
 PA_UPDATE_MAP = c_enum_map(set=0, merge=1, replace=2)
 PA_PORT_AVAILABLE_MAP = c_enum_map(unknown=0, no=1, yes=2)
+PA_STREAM_STATE_MAP = c_enum_map(unconnected=0, creating=1, ready=2, failed=3, terminated=4)
 
 # These are defined separately as
 #  pa_sink_state / pa_source_state, but seem to match.
 PA_OBJ_STATE_MAP = c_enum_map(invalid=-1, running=0, idle=1, suspended=2)
+
+del _globals
 
 
 class PA_MAINLOOP(Structure): pass
@@ -147,6 +205,21 @@ class PA_CHANNEL_MAP(Structure):
 	_fields_ = [
 		('channels', c_uint8),
 		('map', c_int * PA_CHANNELS_MAX)
+	]
+
+class PA_FORMAT_INFO(Structure):
+	_fields_ = [
+		('encoding', c_int),
+		('proplist', POINTER(PA_PROPLIST)),
+	]
+
+class PA_BUFFER_ATTR(Structure):
+	_fields_ = [
+		('maxlength', c_uint32),
+		('tlength', c_uint32),
+		('prebuf', c_uint32),
+		('minreq', c_uint32),
+		('fragsize', c_uint32),
 	]
 
 class PA_CVOLUME(Structure):
@@ -343,6 +416,10 @@ PA_STATE_CB_T = CFUNCTYPE(c_int,
 	POINTER(PA_CONTEXT),
 	c_void_p)
 
+PA_STREAM_NOTIFY_CB_T = CFUNCTYPE(c_void_p,
+	POINTER(PA_STREAM),
+	c_void_p)
+
 PA_CLIENT_INFO_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_CONTEXT),
 	POINTER(PA_CLIENT_INFO),
@@ -537,15 +614,32 @@ class LibPulse(object):
 		pa_ext_stream_restore_delete=( 'pa_op',
 			[POINTER(PA_CONTEXT), POINTER(c_char_p), PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
+		pa_proplist_new=(POINTER(PA_PROPLIST)),
+		pa_proplist_free=[POINTER(PA_PROPLIST)],
 		pa_proplist_iterate=([POINTER(PA_PROPLIST), POINTER(c_void_p)], c_str_p),
 		pa_proplist_gets=([POINTER(PA_PROPLIST), c_str_p], c_str_p),
+		pa_proplist_sets=([POINTER(PA_PROPLIST), c_str_p, c_str_p], 'int_check_ge0'),
 		pa_channel_map_init_mono=(
 			[POINTER(PA_CHANNEL_MAP)], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
 		pa_channel_map_init_stereo=(
 			[POINTER(PA_CHANNEL_MAP)], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
 		pa_channel_map_snprint=([c_str_p, c_int, POINTER(PA_CHANNEL_MAP)], c_str_p),
 		pa_channel_map_parse=(
-			[POINTER(PA_CHANNEL_MAP), c_str_p], (POINTER(PA_CHANNEL_MAP), 'not_null') ) )
+			[POINTER(PA_CHANNEL_MAP), c_str_p], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
+		pa_format_info_snprint=([c_str_p, c_int, POINTER(PA_FORMAT_INFO)], c_str_p),
+		pa_format_info_from_string=([c_str_p], POINTER(PA_FORMAT_INFO)),
+		pa_format_info_free=[POINTER(PA_FORMAT_INFO)],
+		pa_stream_new_extended=(
+			[ POINTER(PA_CONTEXT), c_str_p,
+				POINTER(POINTER(PA_FORMAT_INFO)), c_uint, POINTER(PA_PROPLIST) ],
+			(POINTER(PA_STREAM), 'not_null') ),
+		pa_stream_connect_playback=([
+			POINTER(PA_STREAM), c_str_p, POINTER(PA_BUFFER_ATTR),
+			c_uint, POINTER(PA_CVOLUME), POINTER(PA_STREAM) ], 'int_check_ge0'),
+		pa_stream_disconnect=([POINTER(PA_STREAM)], 'int_check_ge0'),
+		pa_stream_unref=([POINTER(PA_STREAM)]),
+		pa_stream_get_state=([POINTER(PA_STREAM)], c_int),
+		pa_stream_set_state_callback=([POINTER(PA_STREAM), PA_STREAM_NOTIFY_CB_T, c_void_p]) )
 
 	class CallError(Exception): pass
 
