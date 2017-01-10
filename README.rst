@@ -231,10 +231,6 @@ It might be preferrable to use enums instead of strings in the code so that
 interpreter can signal error on any typos or unknown values specified, as
 opposed to always silently failing checks with bogus strings.
 
-Dashes in enum values are interchangeable with underscores, so that they'd be
-easy to compare with pulse proplist values (which usually use dashes),
-i.e. ``pulsectl.PulseEncodingEnum.mpeg2_aac_iec61937 == 'mpeg2-aac-iec61937'``.
-
 
 Event-handling code, threads
 ````````````````````````````

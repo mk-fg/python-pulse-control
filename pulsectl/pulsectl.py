@@ -32,16 +32,15 @@ class EnumValue(object):
 	'String-based enum value, comparable to native strings.'
 	__slots__ = '_t', '_value', '_c_val'
 	def __init__(self, t, value, c_value=None):
-		self._t, self._value, self._c_val = t, value.replace('_', '-'), c_value
-	def __str__(self): return self._value
+		self._t, self._value, self._c_val = t, value, c_value
 	def __repr__(self): return '<EnumValue {} {}>'.format(self._t, self._value)
 	def __eq__(self, val):
 		if isinstance(val, EnumValue): val = val._value
-		return self._value == val.replace('_', '-')
-	def __ne__(self, val): return not (self == val.replace('_', '-'))
+		return self._value == val
+	def __ne__(self, val): return not (self == val)
 	def __lt__(self, val):
 		if isinstance(val, EnumValue): val = val._value
-		return self._value < val.replace('_', '-')
+		return self._value < val
 	def __hash__(self): return hash(self._value)
 
 class Enum(object):
@@ -54,7 +53,7 @@ class Enum(object):
 		self._name, self._values, self._c_vals = name, dict(), dict()
 		for c_val, k in vals:
 			v = EnumValue(name, k, c_val)
-			setattr(self, k.replace('-', '_'), v)
+			setattr(self, k, v)
 			self._c_vals[c_val] = self._values[k] = v
 
 	def __getitem__(self, k, *default):
@@ -82,10 +81,6 @@ PulseEventTypeEnum = Enum('event-type', c.PA_EVENT_TYPE_MAP)
 PulseEventFacilityEnum = Enum('event-facility', c.PA_EVENT_FACILITY_MAP)
 PulseEventMaskEnum = Enum('event-mask', c.PA_EVENT_MASK_MAP)
 
-PulseStreamStateEnum = Enum('stream-state', c.PA_STREAM_STATE_MAP)
-PulseStreamFlagsEnum = Enum('encoding', c.PA_STREAM_FLAGS)
-PulseEncodingEnum = Enum('encoding', c.PA_ENCODING_MAP)
-PulseSampleFormatEnum = Enum('sample-format', c.PA_SAMPLE_MAP)
 PulseStateEnum = Enum('sink/source-state', c.PA_OBJ_STATE_MAP)
 PulseUpdateEnum = Enum('update-type', c.PA_UPDATE_MAP)
 PulsePortAvailableEnum = Enum('available-state', c.PA_PORT_AVAILABLE_MAP)
@@ -749,49 +744,6 @@ class Pulse(object):
 		if not func_err_handler: func_err_handler = traceback.print_exception
 		self._pa_poll_cb = c.PA_POLL_FUNC_T(ft.partial(self._pulse_poll_cb, func, func_err_handler))
 		c.pa.mainloop_set_poll_func(self._loop, self._pa_poll_cb, None)
-
-
-	@contextmanager
-	def dummy_playback_stream( self, connect_to_sink=None,
-			name='audio stream', flags='start_corked', format_info_str='pcm',
-			stream_props={'media.name': 'dummy stream', 'application.name': 'dummy'} ):
-		'''Context manager that creates dummy playback stream with specified
-			 parameters, without writing anything to it. Might only be useful for testing.'''
-		connect_flags = 0
-		if is_num(flags): connect_flags = flags
-		else:
-			if is_str(flags): flags = flags.split()
-			for k in flags: connect_flags |= PulseStreamFlagsEnum[str(k)]._c_val
-		connect_buff_attr = connect_vol = connect_sync = None
-
-		stream_proplist = stream_format = stream = None
-		try:
-			try:
-				stream_format = c.pa.format_info_from_string(format_info_str)
-				stream_proplist = c.pa.proplist_new()
-				for k, v in stream_props.items(): c.pa.proplist_sets(stream_proplist, k, v)
-				stream = c.pa.stream_new_extended(
-					self._ctx, name, c.pointer(stream_format), 1, stream_proplist )
-			finally:
-				if stream_proplist: c.pa.proplist_free(stream_proplist)
-				if stream_format: c.pa.format_info_free(stream_format)
-
-			c.pa.stream_connect_playback( stream, connect_to_sink,
-				connect_buff_attr, connect_flags, connect_vol, connect_sync )
-			while True:
-				state = c.pa.stream_get_state(stream)
-				if state >= PulseStreamStateEnum.ready._c_val: break
-				self._pulse_iterate()
-
-			if PulseStreamStateEnum._c_val(state) in [
-					PulseStreamStateEnum.failed, PulseStreamStateEnum.terminated ]:
-				raise PulseOperationFailed
-			yield
-		finally:
-			if stream:
-				try: c.pa.stream_disconnect(stream)
-				except c.pa.CallError: pass
-				c.pa.stream_unref(stream)
 
 
 def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, retry_delay=0.3):
