@@ -175,9 +175,6 @@ class PulsePortInfo(PulseObject):
 
 	def __hash__(self): return hash(self.name)
 
-class PulseCardInfo(PulseObject):
-	c_struct_fields = 'name index driver owner_module n_profiles'
-
 class PulseClientInfo(PulseObject):
 	c_struct_fields = 'name index driver owner_module'
 
@@ -219,6 +216,23 @@ class PulseSourceOutputInfo(PulseObject):
 
 	def __str__(self):
 		return self._as_str(fields='index name mute')
+
+class PulseCardProfileInfo(PulseObject):
+	c_struct_fields = 'name description n_sinks n_sources priority'
+
+class PulseCardInfo(PulseObject):
+	c_struct_fields = 'name index driver owner_module n_profiles'
+
+	def __init__(self, struct):
+		super(PulseCardInfo, self).__init__(struct)
+		self.profile_list = list(
+			PulseCardProfileInfo(struct.profiles[n]) for n in range(self.n_profiles) )
+		self.profile_active = PulseCardProfileInfo(struct.active_profile.contents)
+
+	def __str__(self):
+		return self._as_str(
+			fields='name index driver n_profiles',
+			profile_active='[{}]'.format(self.profile_active.name) )
 
 class PulseVolumeInfo(PulseObject):
 
@@ -548,6 +562,9 @@ class Pulse(object):
 		if func.__doc__: _wrapper.__doc__ += '\n\n' + func.__doc__
 		return _wrapper
 
+	card_profile_set_by_index = _pulse_method_call(
+		c.pa.context_set_card_profile_by_index, lambda profile_name: profile_name )
+
 	sink_default_set = _pulse_method_call(
 		c.pa.context_set_default_sink, index_arg=False,
 		func=lambda sink: sink.name if isinstance(sink, PulseSinkInfo) else sink )
@@ -680,6 +697,17 @@ class Pulse(object):
 		if not method: raise NotImplementedError(type(obj))
 		method(obj.index, port)
 		obj.port_active = port
+
+	def card_profile_set(self, card, profile):
+		assert_pulse_object(card)
+		if is_str(profile):
+			profile_dict = dict((p.name, p) for p in card.profile_list)
+			if profile not in profile_dict:
+				raise PulseIndexError( 'Card does not have'
+					' profile with specified name: {!r}'.format(profile) )
+			profile = profile_dict[profile]
+		self.card_profile_set_by_index(card.index, profile.name)
+		card.profile_active = profile
 
 	def volume_set(self, obj, vol):
 		assert_pulse_object(obj)

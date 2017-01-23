@@ -8,8 +8,16 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 16.12.4
+Last synced/updated: 17.1.3
 
 ---------------------------------------------------------------------------
 
-- 16.11.0: this changelog file was started, thanks to the idea from #12
+- 17.1.3: Add wrappers for card profiles.
+
+  More specifically - PulseCardProfileInfo objects and PulseCardInfo
+  "profile_list" and "profile_active" attributes.
+
+  ``pulse.card_profile_set(card, profile)`` can be used to set active profile
+  (either by name or PulseCardProfileInfo object).
+
+- 16.11.0: This changelog file was started, thanks to the idea from #12.

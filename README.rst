@@ -79,6 +79,14 @@ Misc other tinkering::
   'alsa_output.pci-0000_00_14.2.analog-stereo'
   >>> pulse.default_set(sink)
 
+  >>> card = pulse.card_list()[0]
+  >>> card.profile_list
+  [<PulseCardProfileInfo at 7f02e7e88ac8 - description='Analog Stereo Input', n_sinks=0, n_sources=1, name='input:analog-stereo', priority=60>,
+   <PulseCardProfileInfo at 7f02e7e88b70 - description='Analog Stereo Output', n_sinks=1, n_sources=0, name='output:analog-stereo', priority=6000>,
+   ...
+   <PulseCardProfileInfo at 7f02e7e9a4e0 - description='Off', n_sinks=0, n_sources=0, name='off', priority=0>]
+  >>> pulse.card_profile_set(card, 'output:hdmi-stereo')
+
   >>> help(pulse)
   ...
 
