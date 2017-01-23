@@ -26,6 +26,11 @@ is_num = lambda v: isinstance(v, (int, float, long))
 is_list = lambda v: isinstance(v, (tuple, list))
 is_dict = lambda v: isinstance(v, dict)
 
+def assert_pulse_object(obj):
+	if not isinstance(obj, PulseObject):
+		raise TypeError( 'Pulse<something>Info'
+			' object is required instead of value: [{}] {}', type(obj), obj )
+
 
 @ft.total_ordering
 class EnumValue(object):
@@ -648,7 +653,8 @@ class Pulse(object):
 
 
 	def default_set(self, obj):
-		assert isinstance(obj, PulseObject), [type(obj), obj]
+		'Set passed sink or source to be used as default one by pulseaudio server.'
+		assert_pulse_object(obj)
 		method = {
 			PulseSinkInfo: self.sink_default_set,
 			PulseSourceInfo: self.source_default_set }.get(type(obj))
@@ -656,7 +662,7 @@ class Pulse(object):
 		method(obj)
 
 	def mute(self, obj, mute=True):
-		assert isinstance(obj, PulseObject), [type(obj), obj]
+		assert_pulse_object(obj)
 		method = {
 			PulseSinkInfo: self.sink_mute,
 			PulseSinkInputInfo: self.sink_input_mute,
@@ -667,7 +673,7 @@ class Pulse(object):
 		obj.mute = mute
 
 	def port_set(self, obj, port):
-		assert isinstance(obj, PulseObject), [type(obj), obj]
+		assert_pulse_object(obj)
 		method = {
 			PulseSinkInfo: self.sink_port_set,
 			PulseSourceInfo: self.source_port_set }.get(type(obj))
@@ -676,7 +682,7 @@ class Pulse(object):
 		obj.port_active = port
 
 	def volume_set(self, obj, vol):
-		assert isinstance(obj, PulseObject), [type(obj), obj]
+		assert_pulse_object(obj)
 		method = {
 			PulseSinkInfo: self.sink_volume_set,
 			PulseSinkInputInfo: self.sink_input_volume_set,
@@ -687,17 +693,17 @@ class Pulse(object):
 		obj.volume = vol
 
 	def volume_set_all_chans(self, obj, vol):
-		assert isinstance(obj, PulseObject), [type(obj), obj]
+		assert_pulse_object(obj)
 		obj.volume.value_flat = vol
 		self.volume_set(obj, obj.volume)
 
 	def volume_change_all_chans(self, obj, inc):
-		assert isinstance(obj, PulseObject), [type(obj), obj]
+		assert_pulse_object(obj)
 		obj.volume.values = [max(0, v + inc) for v in obj.volume.values]
 		self.volume_set(obj, obj.volume)
 
 	def volume_get_all_chans(self, obj):
-		assert isinstance(obj, PulseObject), [type(obj), obj]
+		assert_pulse_object(obj)
 		return obj.volume.value_flat
 
 
