@@ -89,6 +89,7 @@ PulseEventMaskEnum = Enum('event-mask', c.PA_EVENT_MASK_MAP)
 PulseStateEnum = Enum('sink/source-state', c.PA_OBJ_STATE_MAP)
 PulseUpdateEnum = Enum('update-type', c.PA_UPDATE_MAP)
 PulsePortAvailableEnum = Enum('available-state', c.PA_PORT_AVAILABLE_MAP)
+PulseDirectionEnum = Enum('direction', c.PA_DIRECTION_MAP)
 
 
 class PulseError(Exception): pass
@@ -100,6 +101,8 @@ class PulseLoopStop(Exception): pass
 class PulseDisconnected(Exception): pass
 
 class PulseObject(object):
+
+	c_struct_wrappers = dict()
 
 	def __init__(self, struct=None, *field_data_list, **field_data_dict):
 		field_data, fields = dict(), getattr(self, 'c_struct_fields', list())
@@ -119,14 +122,15 @@ class PulseObject(object):
 					if not k: break
 					self.proplist[c.force_str(k)] = c.force_str(c.pa.proplist_gets(struct.proplist, k))
 			if hasattr(struct, 'volume'):
-				self.volume = PulseVolumeInfo(struct.volume)
+				self.volume = self._get_wrapper(PulseVolumeInfo)(struct.volume)
 			if hasattr(struct, 'n_ports'):
+				cls_port = self._get_wrapper(PulsePortInfo)
 				self.port_list = list(
-					PulsePortInfo(struct.ports[n].contents)
-					for n in range(struct.n_ports) )
+					cls_port(struct.ports[n].contents) for n in range(struct.n_ports) )
 			if hasattr(struct, 'active_port'):
-				self.port_active = None if not struct.active_port\
-					else PulsePortInfo(struct.active_port.contents)
+				cls_port = self._get_wrapper(PulsePortInfo)
+				self.port_active = (
+					None if not struct.active_port else cls_port(struct.active_port.contents) )
 			if hasattr(struct, 'channel_map'):
 				self.channel_count, self.channel_list = struct.channel_map.channels, list()
 				if self.channel_count > 0:
@@ -138,6 +142,9 @@ class PulseObject(object):
 					struct.state, u'state.{}'.format(struct.state) )
 				self.state_values = sorted(PulseStateEnum._values.values())
 			self._init_from_struct(struct)
+
+	def _get_wrapper(self, cls_base):
+		return self.c_struct_wrappers.get(cls_base, cls_base)
 
 	def _copy_struct_fields(self, struct, fields=None, str_errors='strict'):
 		if not fields: fields = self.c_struct_fields
@@ -164,7 +171,7 @@ class PulseObject(object):
 
 
 class PulsePortInfo(PulseObject):
-	c_struct_fields = 'name description priority'
+	c_struct_fields = 'name description available priority'
 
 	def _init_from_struct(self, struct):
 		self.available_state = PulsePortAvailableEnum._c_val(struct.available)
@@ -220,8 +227,15 @@ class PulseSourceOutputInfo(PulseObject):
 class PulseCardProfileInfo(PulseObject):
 	c_struct_fields = 'name description n_sinks n_sources priority'
 
+class PulseCardPortInfo(PulsePortInfo):
+	c_struct_fields = 'name description priority direction latency_offset'
+
+	def _init_from_struct(self, struct):
+		self.direction = PulseDirectionEnum._c_val(struct.direction)
+
 class PulseCardInfo(PulseObject):
 	c_struct_fields = 'name index driver owner_module n_profiles'
+	c_struct_wrappers = {PulsePortInfo: PulseCardPortInfo}
 
 	def __init__(self, struct):
 		super(PulseCardInfo, self).__init__(struct)

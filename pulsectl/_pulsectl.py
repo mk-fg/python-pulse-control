@@ -120,6 +120,7 @@ del _globals, _pa_ev_type, _pa_ev_fac, _pa_ev_mask
 
 PA_UPDATE_MAP = c_enum_map(set=0, merge=1, replace=2)
 PA_PORT_AVAILABLE_MAP = c_enum_map(unknown=0, no=1, yes=2)
+PA_DIRECTION_MAP = c_enum_map(unknown=0, output=1, input=2)
 
 # These are defined separately as
 #  pa_sink_state / pa_source_state, but seem to match.
@@ -287,6 +288,21 @@ class PA_CARD_PROFILE_INFO(Structure):
 		('priority', c_uint32),
 	]
 
+# Extends PA_PORT_INFO with a few card-specific things
+class PA_CARD_PORT_INFO(Structure):
+	_fields_ = [
+		('name', c_char_p),
+		('description', c_char_p),
+		('priority', c_uint32),
+		('available', c_int),
+		('direction', c_int),
+		('n_profiles', c_uint32),
+		('profiles', POINTER(PA_CARD_PROFILE_INFO)),
+		('proplist', POINTER(PA_PROPLIST)),
+		('latency_offset', c_int64),
+		# ('profiles2', ...), - since pulse >= 5.0, not implemented
+	]
+
 class PA_CARD_INFO(Structure):
 	_fields_ = [
 		('index', c_uint32),
@@ -297,6 +313,8 @@ class PA_CARD_INFO(Structure):
 		('profiles', POINTER(PA_CARD_PROFILE_INFO)),
 		('active_profile', POINTER(PA_CARD_PROFILE_INFO)),
 		('proplist', POINTER(PA_PROPLIST)),
+		('n_ports', c_uint32),
+		('ports', POINTER(POINTER(PA_CARD_PORT_INFO))),
 	]
 
 class PA_MODULE_INFO(Structure):

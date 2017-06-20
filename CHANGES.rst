@@ -12,6 +12,12 @@ Last synced/updated: 17.1.3
 
 ---------------------------------------------------------------------------
 
+- 17.6.0: Add PulseCardInfo.port_list.
+
+  These ports are different from sink/source ports in that they have proplist,
+  card profiles and some other parameters associated with them, implemented as
+  PulseCardPortInfo instances.
+
 - 17.1.3: Add wrappers for card profiles.
 
   More specifically - PulseCardProfileInfo objects and PulseCardInfo
