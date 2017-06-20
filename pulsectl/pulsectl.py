@@ -38,7 +38,7 @@ class EnumValue(object):
 	__slots__ = '_t', '_value', '_c_val'
 	def __init__(self, t, value, c_value=None):
 		self._t, self._value, self._c_val = t, value, c_value
-	def __repr__(self): return '<EnumValue {} {}>'.format(self._t, self._value)
+	def __repr__(self): return '<EnumValue {}={}>'.format(self._t, self._value)
 	def __eq__(self, val):
 		if isinstance(val, EnumValue): val = val._value
 		return self._value == val
@@ -88,7 +88,7 @@ PulseEventMaskEnum = Enum('event-mask', c.PA_EVENT_MASK_MAP)
 
 PulseStateEnum = Enum('sink/source-state', c.PA_OBJ_STATE_MAP)
 PulseUpdateEnum = Enum('update-type', c.PA_UPDATE_MAP)
-PulsePortAvailableEnum = Enum('available-state', c.PA_PORT_AVAILABLE_MAP)
+PulsePortAvailableEnum = Enum('available', c.PA_PORT_AVAILABLE_MAP)
 PulseDirectionEnum = Enum('direction', c.PA_DIRECTION_MAP)
 
 
@@ -174,7 +174,8 @@ class PulsePortInfo(PulseObject):
 	c_struct_fields = 'name description available priority'
 
 	def _init_from_struct(self, struct):
-		self.available_state = PulsePortAvailableEnum._c_val(struct.available)
+		self.available = PulsePortAvailableEnum._c_val(struct.available)
+		self.available_state = self.available # for compatibility with <=17.6.0
 
 	def __eq__(self, o):
 		if not isinstance(o, PulsePortInfo): raise TypeError(o)
