@@ -9,7 +9,7 @@ from .pulsectl import (
 	PulseExtStreamRestoreInfo, PulseEventInfo,
 
 	PulseEventTypeEnum, PulseEventFacilityEnum, PulseEventMaskEnum,
-	PulseStateEnum, PulseUpdateEnum, PulsePortAvailableEnum,
+	PulseStateEnum, PulseUpdateEnum, PulsePortAvailableEnum, PulseDirectionEnum,
 
 	PulseError, PulseIndexError, PulseOperationFailed, PulseOperationInvalid,
 	PulseLoopStop, PulseDisconnected, PulseObject, Pulse, connect_to_cli )
