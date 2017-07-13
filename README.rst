@@ -35,9 +35,9 @@ Listening for server state change events::
   from pulsectl import Pulse, PulseLoopStop
 
   with Pulse('event-printer') as pulse:
-    # print('Event types:', ', '.join(map(str, pulse.event_types)))
-    # print('Event facilities:', ', '.join(map(str, pulse.event_facilities)))
-    # print('Event masks:', ', '.join(map(str, pulse.event_masks)))
+    # print('Event types:', pulse.event_types)
+    # print('Event facilities:', pulse.event_facilities)
+    # print('Event masks:', pulse.event_masks)
 
     def print_events(ev):
       print('Pulse event:', ev)
