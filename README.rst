@@ -23,26 +23,26 @@ Usage
 
 Simple example::
 
-  from pulsectl import Pulse
+  import pulsectl
 
-  with Pulse('volume-increaser') as pulse:
+  with pulsectl.Pulse('volume-increaser') as pulse:
     for sink in pulse.sink_list():
       # Volume is usually in 0-1.0 range, with >1.0 being soft-boosted
       pulse.volume_change_all_chans(sink, 0.1)
 
 Listening for server state change events::
 
-  from pulsectl import Pulse, PulseLoopStop
+  import pulsectl
 
-  with Pulse('event-printer') as pulse:
-    # print('Event types:', pulse.event_types)
-    # print('Event facilities:', pulse.event_facilities)
-    # print('Event masks:', pulse.event_masks)
+  with pulsectl.Pulse('event-printer') as pulse:
+    # print('Event types:', pulsectl.PulseEventTypeEnum)
+    # print('Event facilities:', pulsectl.PulseEventFacilityEnum)
+    # print('Event masks:', pulsectl.PulseEventMaskEnum)
 
     def print_events(ev):
       print('Pulse event:', ev)
       ### Raise PulseLoopStop for event_listen() to return before timeout (if any)
-      # raise PulseLoopStop
+      # raise pulsectl.PulseLoopStop
 
     pulse.event_mask_set('all')
     pulse.event_callback_set(print_events)
@@ -50,8 +50,8 @@ Listening for server state change events::
 
 Misc other tinkering::
 
-  >>> from pulsectl import Pulse
-  >>> pulse = Pulse('my-client-name')
+  >>> import pulsectl
+  >>> pulse = pulsectl.Pulse('my-client-name')
 
   >>> pulse.sink_list()
   [<PulseSinkInfo at 7f85cfd053d0 - desc='Built-in Audio', index=0L, mute=0, name='alsa-speakers', channels=2, volumes='44.0%, 44.0%'>]
@@ -183,6 +183,8 @@ to sound level in dB).
 
 Code example::
 
+  from pulsectl import Pulse, PulseVolumeInfo
+
   with Pulse('volume-example') as pulse:
     sink_input = pulse.sink_input_list()[0] # first random sink-input stream
 
@@ -231,7 +233,7 @@ For example::
   >>> pulsectl.PulseEventTypeEnum.change == 'change'
   True
   >>> pulsectl.PulseEventTypeEnum.change
-  <EnumValue event-type change>
+  <EnumValue event-type=change>
   >>> pulsectl.PulseEventTypeEnum
   <Enum event-type [change new remove]>
 
