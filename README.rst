@@ -319,9 +319,10 @@ for some trivial README typo fix.
 | Version scheme: ``{year}.{month}.{git-commit-count-this-month}``
 | I.e. "16.9.10" is "11th commit on Sep 2016".
 |
+
 There is a `CHANGES.rst <CHANGES.rst>`_ file with the list of any intentional
-breaking changes (should be exceptionally rare, if any) and new/added non-trivial
-functionality.
+breaking changes (should be exceptionally rare, if any) and new/added
+non-trivial functionality.
 
 | It can be a bit out of date though, as one has to remember to update it manually.
 | "Last synced/updated:" line there might give a hint as to by how much.
