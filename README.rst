@@ -281,6 +281,9 @@ rather return "future" object and register a set of fd's (as passed to
 Never needed that, so not implemented in the module, but should be rather easy
 to implement on top of it, as described.
 
+See more info/discussion and code examples in `github #11
+<https://github.com/mk-fg/python-pulse-control/issues/11>`_.
+
 
 Tests
 `````
