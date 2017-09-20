@@ -521,8 +521,8 @@ class Pulse(object):
 		c.PA_SINK_INFO_CB_T,
 		c.pa.context_get_sink_info_by_name, PulseSinkInfo )
 	get_source_by_name = _pulse_get_list(
-	        c.PA_SINK_INFO_CB_T,
-	        c.pa.context_get_source_info_by_name, PulseSourceInfo )
+		c.PA_SINK_INFO_CB_T,
+		c.pa.context_get_source_info_by_name, PulseSourceInfo )
 
 	sink_input_list = _pulse_get_list(
 		c.PA_SINK_INPUT_INFO_CB_T,
