@@ -517,6 +517,13 @@ class Pulse(object):
 		_add_wrap_doc(_decorator_or_method)
 		return _decorator_or_method
 
+	get_sink_by_name = _pulse_get_list(
+		c.PA_SINK_INFO_CB_T,
+		c.pa.context_get_sink_info_by_name, PulseSinkInfo )
+	get_source_by_name = _pulse_get_list(
+	        c.PA_SINK_INFO_CB_T,
+	        c.pa.context_get_source_info_by_name, PulseSourceInfo )
+
 	sink_input_list = _pulse_get_list(
 		c.PA_SINK_INPUT_INFO_CB_T,
 		c.pa.context_get_sink_input_info_list, PulseSinkInputInfo )
