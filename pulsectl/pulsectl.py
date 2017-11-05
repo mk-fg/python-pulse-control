@@ -410,7 +410,6 @@ class Pulse(object):
 			if state == c.PA_CONTEXT_READY: self.connected = True
 			elif state in [c.PA_CONTEXT_FAILED, c.PA_CONTEXT_TERMINATED]:
 				self.connected, self._loop_stop = False, True
-		return 0
 
 	def _pulse_subscribe_cb(self, ctx, ev, idx, userdata):
 		if not self.event_callback: return
@@ -487,7 +486,6 @@ class Pulse(object):
 	def _pulse_info_cb(self, info_cls, data_list, done_cb, ctx, info, eof, userdata):
 		if eof: done_cb()
 		else: data_list.append(info_cls(info[0]))
-		return 0
 
 	def _pulse_get_list(cb_t, pulse_func, info_cls, singleton=False, index_arg=True):
 		def _wrapper(self, index=None):
