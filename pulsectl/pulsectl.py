@@ -226,9 +226,6 @@ class PulseSourceOutputInfo(PulseObject):
 		return self._as_str(fields='index name mute')
 
 class PulseCardProfileInfo(PulseObject):
-	c_struct_fields = 'name description n_sinks n_sources priority'
-
-class PulseCardProfileInfo2(PulseObject):
 	c_struct_fields = 'name description n_sinks n_sources priority available'
 
 class PulseCardPortInfo(PulsePortInfo):
@@ -244,8 +241,8 @@ class PulseCardInfo(PulseObject):
 	def __init__(self, struct):
 		super(PulseCardInfo, self).__init__(struct)
 		self.profile_list = list(
-			PulseCardProfileInfo2(struct.profiles2[n][0]) for n in range(self.n_profiles) )
-		self.profile_active = PulseCardProfileInfo2(struct.active_profile2.contents)
+			PulseCardProfileInfo(struct.profiles2[n][0]) for n in range(self.n_profiles) )
+		self.profile_active = PulseCardProfileInfo(struct.active_profile2.contents)
 
 	def __str__(self):
 		return self._as_str(

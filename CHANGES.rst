@@ -8,9 +8,13 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 17.9.3
+Last synced/updated: 17.12.2
 
 ---------------------------------------------------------------------------
+
+- 17.12.2: Use pa_card_profile_info2 / profiles2 introspection API.
+
+  Only adds one "available" property to PulseCardProfileInfo.
 
 - 17.9.3: Add wrappers for Pulse.get_sink_by_name / Pulse.get_source_by_name [#17].
 

@@ -286,15 +286,6 @@ class PA_CARD_PROFILE_INFO(Structure):
 		('n_sinks', c_uint32),
 		('n_sources', c_uint32),
 		('priority', c_uint32),
-	]
-
-class PA_CARD_PROFILE_INFO2(Structure):
-	_fields_ = [
-		('name', c_char_p),
-		('description', c_char_p),
-		('n_sinks', c_uint32),
-		('n_sources', c_uint32),
-		('priority', c_uint32),
 		('available', c_int),
 	]
 
@@ -307,10 +298,10 @@ class PA_CARD_PORT_INFO(Structure):
 		('available', c_int),
 		('direction', c_int),
 		('n_profiles', c_uint32),
-		('profiles', POINTER(PA_CARD_PROFILE_INFO)),
+		('profiles', c_void_p), # use profiles2
 		('proplist', POINTER(PA_PROPLIST)),
 		('latency_offset', c_int64),
-		('profiles2', POINTER(POINTER(PA_CARD_PROFILE_INFO2))),
+		('profiles2', POINTER(POINTER(PA_CARD_PROFILE_INFO))),
 	]
 
 class PA_CARD_INFO(Structure):
@@ -320,13 +311,13 @@ class PA_CARD_INFO(Structure):
 		('owner_module', c_uint32),
 		('driver', c_char_p),
 		('n_profiles', c_uint32),
-		('profiles', POINTER(PA_CARD_PROFILE_INFO)),
-		('active_profile', POINTER(PA_CARD_PROFILE_INFO)),
+		('profiles', c_void_p), # use profiles2 / active_profile2
+		('active_profile', c_void_p),
 		('proplist', POINTER(PA_PROPLIST)),
 		('n_ports', c_uint32),
 		('ports', POINTER(POINTER(PA_CARD_PORT_INFO))),
-		('profiles2', POINTER(POINTER(PA_CARD_PROFILE_INFO2))),
-		('active_profile2', POINTER(PA_CARD_PROFILE_INFO2)),
+		('profiles2', POINTER(POINTER(PA_CARD_PROFILE_INFO))),
+		('active_profile2', POINTER(PA_CARD_PROFILE_INFO)),
 	]
 
 class PA_MODULE_INFO(Structure):
