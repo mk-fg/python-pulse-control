@@ -15,6 +15,7 @@ Last synced/updated: 17.12.2
 - 17.12.2: Use pa_card_profile_info2 / profiles2 introspection API.
 
   Only adds one "available" property to PulseCardProfileInfo.
+  Requires pulseaudio/libpulse 5.0+.
 
 - 17.9.3: Add wrappers for Pulse.get_sink_by_name / Pulse.get_source_by_name [#17].
 
