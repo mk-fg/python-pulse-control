@@ -288,6 +288,16 @@ class PA_CARD_PROFILE_INFO(Structure):
 		('priority', c_uint32),
 	]
 
+class PA_CARD_PROFILE_INFO2(Structure):
+	_fields_ = [
+		('name', c_char_p),
+		('description', c_char_p),
+		('n_sinks', c_uint32),
+		('n_sources', c_uint32),
+		('priority', c_uint32),
+		('available', c_int),
+	]
+
 # Extends PA_PORT_INFO with a few card-specific things
 class PA_CARD_PORT_INFO(Structure):
 	_fields_ = [
@@ -300,7 +310,7 @@ class PA_CARD_PORT_INFO(Structure):
 		('profiles', POINTER(PA_CARD_PROFILE_INFO)),
 		('proplist', POINTER(PA_PROPLIST)),
 		('latency_offset', c_int64),
-		# ('profiles2', ...), - since pulse >= 5.0, not implemented
+		('profiles2', POINTER(POINTER(PA_CARD_PROFILE_INFO2))),
 	]
 
 class PA_CARD_INFO(Structure):
@@ -315,6 +325,8 @@ class PA_CARD_INFO(Structure):
 		('proplist', POINTER(PA_PROPLIST)),
 		('n_ports', c_uint32),
 		('ports', POINTER(POINTER(PA_CARD_PORT_INFO))),
+		('profiles2', POINTER(POINTER(PA_CARD_PROFILE_INFO2))),
+		('active_profile2', POINTER(PA_CARD_PROFILE_INFO2)),
 	]
 
 class PA_MODULE_INFO(Structure):

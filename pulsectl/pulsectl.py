@@ -228,6 +228,9 @@ class PulseSourceOutputInfo(PulseObject):
 class PulseCardProfileInfo(PulseObject):
 	c_struct_fields = 'name description n_sinks n_sources priority'
 
+class PulseCardProfileInfo2(PulseObject):
+	c_struct_fields = 'name description n_sinks n_sources priority available'
+
 class PulseCardPortInfo(PulsePortInfo):
 	c_struct_fields = 'name description priority direction latency_offset'
 
@@ -241,8 +244,8 @@ class PulseCardInfo(PulseObject):
 	def __init__(self, struct):
 		super(PulseCardInfo, self).__init__(struct)
 		self.profile_list = list(
-			PulseCardProfileInfo(struct.profiles[n]) for n in range(self.n_profiles) )
-		self.profile_active = PulseCardProfileInfo(struct.active_profile.contents)
+			PulseCardProfileInfo2(struct.profiles2[n][0]) for n in range(self.n_profiles) )
+		self.profile_active = PulseCardProfileInfo2(struct.active_profile2.contents)
 
 	def __str__(self):
 		return self._as_str(
