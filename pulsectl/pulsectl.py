@@ -229,9 +229,10 @@ class PulseCardProfileInfo(PulseObject):
 	c_struct_fields = 'name description n_sinks n_sources priority available'
 
 class PulseCardPortInfo(PulsePortInfo):
-	c_struct_fields = 'name description priority direction latency_offset'
+	c_struct_fields = 'name description available priority direction latency_offset'
 
 	def _init_from_struct(self, struct):
+		super(PulseCardPortInfo, self)._init_from_struct(struct)
 		self.direction = PulseDirectionEnum._c_val(struct.direction)
 
 class PulseCardInfo(PulseObject):
