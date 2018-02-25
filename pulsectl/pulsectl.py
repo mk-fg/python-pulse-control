@@ -746,6 +746,10 @@ class Pulse(object):
 		obj.volume.value_flat = vol
 		self.volume_set(obj, obj.volume)
 
+	def volume_set_all_chans_by_name(self, name, vol):
+		obj = self.get_input_sink_by_name(name)
+		return self.volume_set_all_chans(obj, vol)
+
 	def volume_change_all_chans(self, obj, inc):
 		assert_pulse_object(obj)
 		obj.volume.values = [max(0, v + inc) for v in obj.volume.values]
@@ -755,6 +759,14 @@ class Pulse(object):
 		assert_pulse_object(obj)
 		return obj.volume.value_flat
 
+	def volume_get_all_chans_by_name(self, name):
+		obj = self.get_input_sink_by_name(name)
+		return self.volume_get_all_chans(obj)
+
+	def get_input_sink_by_name(self, name):
+		for sil_item in self.sink_input_list():
+			if name == sil_item.proplist["application.name"]:
+				return sil_item
 
 	def event_mask_set(self, *masks):
 		mask = 0
