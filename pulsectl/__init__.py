@@ -4,8 +4,9 @@ from __future__ import print_function
 from . import _pulsectl
 
 from .pulsectl import (
-	PulseCardInfo, PulseClientInfo, PulsePortInfo, PulseVolumeInfo,
+	PulsePortInfo, PulseClientInfo, PulseServerInfo, PulseModuleInfo,
 	PulseSinkInfo, PulseSinkInputInfo, PulseSourceInfo, PulseSourceOutputInfo,
+	PulseCardProfileInfo, PulseCardPortInfo, PulseCardInfo, PulseVolumeInfo,
 	PulseExtStreamRestoreInfo, PulseEventInfo,
 
 	PulseEventTypeEnum, PulseEventFacilityEnum, PulseEventMaskEnum,
