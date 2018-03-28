@@ -271,6 +271,12 @@ class DummyTests(unittest.TestCase):
 			self.assertEqual(pulse.sink_info(sink.index).volume.values, sink.volume.values)
 			pulse.volume_set_all_chans(sink, 1.0)
 
+	def test_get_sink_src(self):
+		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
+			src, sink = pulse.source_list()[0], pulse.sink_list()[0]
+			self.assertEqual(sink.index, pulse.get_sink_by_name(sink.name).index)
+			self.assertEqual(src.index, pulse.get_source_by_name(src.name).index)
+
 	def test_module_funcs(self):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
 			self.assertEqual(len(pulse.sink_list()), 2)
