@@ -473,6 +473,7 @@ class LibPulse(object):
 		pa_context_connect=([POINTER(PA_CONTEXT), c_str_p, c_int, POINTER(c_int)], 'int_check_ge0'),
 		pa_context_get_state=([POINTER(PA_CONTEXT)], c_int),
 		pa_context_disconnect=[POINTER(PA_CONTEXT)],
+		pa_context_unref=([POINTER(PA_CONTEXT)]),
 		pa_context_drain=( 'pa_op',
 			[POINTER(PA_CONTEXT), PA_CONTEXT_DRAIN_CB_T, c_void_p] ),
 		pa_context_set_default_sink=( 'pa_op',
