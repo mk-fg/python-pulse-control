@@ -398,8 +398,8 @@ class Pulse(object):
 				return
 			try:
 				self.disconnect()
-				c.pa.mainloop_free(self._loop)
 				c.pa.context_unref(self._ctx)
+				c.pa.mainloop_free(self._loop)
 			finally: self._ctx = self._loop = None
 
 	def __enter__(self): return self
