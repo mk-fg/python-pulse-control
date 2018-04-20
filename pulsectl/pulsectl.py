@@ -81,6 +81,10 @@ class Enum(object):
 	def __repr__(self):
 		return '<Enum {} [{}]>'.format(self._name, ' '.join(sorted(self._values.keys())))
 
+class FakeLock():
+	def __enter__(self): return self
+	def __exit__(self, *err): pass
+
 
 PulseEventTypeEnum = Enum('event-type', c.PA_EVENT_TYPE_MAP)
 PulseEventFacilityEnum = Enum('event-facility', c.PA_EVENT_FACILITY_MAP)
@@ -358,7 +362,7 @@ class Pulse(object):
 		self._pa_state_cb = c.PA_STATE_CB_T(self._pulse_state_cb)
 		self._pa_subscribe_cb = c.PA_SUBSCRIBE_CB_T(self._pulse_subscribe_cb)
 
-		self._loop, self._loop_lock = c.pa.mainloop_new(), None
+		self._loop, self._loop_lock = c.pa.mainloop_new(), FakeLock()
 		self._loop_running = self._loop_closed = False
 		self._api = c.pa.mainloop_get_api(self._loop)
 
@@ -391,11 +395,12 @@ class Pulse(object):
 		c.pa.context_disconnect(self._ctx)
 
 	def close(self):
-		if self._loop:
-			if self._loop_running:
-				self._loop_closed = True
-				c.pa.mainloop_quit(self._loop, 0)
-				return
+		if not self._loop: return
+		if self._loop_running:
+			self._loop_closed = True
+			c.pa.mainloop_quit(self._loop, 0)
+			return
+		with self._loop_lock:
 			try:
 				self.disconnect()
 				c.pa.context_unref(self._ctx)
@@ -432,8 +437,8 @@ class Pulse(object):
 
 	@contextmanager
 	def _pulse_loop(self):
-		if self._loop_lock: self._loop_lock.acquire()
-		try:
+		with self._loop_lock:
+			if not self._loop: return
 			if self._loop_running:
 				raise PulseError(
 					'Running blocking pulse operations from pulse eventloop callbacks'
@@ -447,8 +452,6 @@ class Pulse(object):
 			finally:
 				self._loop_running = False
 				if self._loop_closed: self.close() # to free() after stopping it
-		finally:
-			if self._loop_lock: self._loop_lock.release()
 
 	def _pulse_run(self):
 		with self._pulse_loop() as loop: c.pa.mainloop_run(loop, self._ret)
