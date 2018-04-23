@@ -21,7 +21,7 @@ lookup_key_defaults = dict(
 
 
 def pulse_obj_lookup(pulse, obj_lookup, prop_default=None):
-	'''Return list of pulse object(s) with proplist values matching lookup-string.
+	'''Return set of pulse object(s) with proplist values matching lookup-string.
 
 		Pattern syntax:
 			[ { 'sink' | 'source' | 'sink-input' | 'source-output' } [ / ... ] ':' ]
@@ -90,4 +90,4 @@ def pulse_obj_lookup(pulse, obj_lookup, prop_default=None):
 			v = obj.proplist.get(k, prop_default)
 			if v is None: continue
 			if lookup_re.search(v): obj_list_res.append(obj)
-	return obj_list_res
+	return set(obj_list_res)
