@@ -396,10 +396,10 @@ class Pulse(object):
 
 	def close(self):
 		if not self._loop: return
-		if self._loop_running:
+		if self._loop_running: # called from another thread
 			self._loop_closed = True
 			c.pa.mainloop_quit(self._loop, 0)
-			return
+			return # presumably will be closed in a thread that's running it
 		with self._loop_lock:
 			try:
 				self.disconnect()
