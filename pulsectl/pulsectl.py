@@ -855,11 +855,13 @@ def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, re
 				with open(pid_path) as src: os.kill(int(src.read().strip()), signal.SIGUSR2)
 			time.sleep(max(0, retry_delay - (c.mono_time() - ts)))
 
-		return s.makefile('rw', 1) if as_file else s
+		if as_file: res = s.makefile('rw', 1)
+		else: res, s = s, None # to avoid closing this socket
+		return res
 
 	except Exception as err: # CallError, socket.error, IOError (pidfile), OSError (os.kill)
 		raise PulseError( 'Failed to connect to pulse'
 			' cli socket {!r}: {} {}'.format(server, type(err), err) )
 
 	finally:
-		if s and as_file: s.close()
+		if s: s.close()

@@ -215,6 +215,13 @@ class DummyTests(unittest.TestCase):
 		xdg_dir_prev = os.environ.get('XDG_RUNTIME_DIR')
 		try:
 			os.environ['XDG_RUNTIME_DIR'] = self.tmp_dir
+			with contextlib.closing(pulsectl.connect_to_cli(as_file=False)) as s:
+				s.send(b'dump\n')
+				while True:
+					try: buff = s.recv(2**20)
+					except socket.error: buff = None
+					if not buff: raise AssertionError
+					if b'### EOF' in buff.splitlines(): break
 			with contextlib.closing(pulsectl.connect_to_cli()) as s:
 				s.write('dump\n')
 				for line in s:
