@@ -862,4 +862,4 @@ def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, re
 			' cli socket {!r}: {} {}'.format(server, type(err), err) )
 
 	finally:
-		if s: s.close()
+		if s and as_file: s.close()
