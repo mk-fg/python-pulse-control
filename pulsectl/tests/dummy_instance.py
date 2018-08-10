@@ -62,7 +62,7 @@ class DummyTests(unittest.TestCase):
 			log_level = 'error' if not env_debug else 'debug'
 			cls.proc = subprocess.Popen(
 				[ 'pulseaudio', '--daemonize=no', '--fail',
-					'-nC', '--exit-idle-time=-1', '--log-level={}'.format(log_level) ],
+					'-nF', '/dev/stdin', '--exit-idle-time=-1', '--log-level={}'.format(log_level) ],
 				env=env, stdin=subprocess.PIPE )
 			for line in [
 					'module-augment-properties',
@@ -89,7 +89,7 @@ class DummyTests(unittest.TestCase):
 					'module-null-sink' ]:
 				if line.startswith('module-'): line = 'load-module {}'.format(line)
 				cls.proc.stdin.write('{}\n'.format(line).encode('utf-8'))
-				cls.proc.stdin.flush()
+			cls.proc.stdin.close()
 			timeout, checks, p = 4, 10, cls.sock_unix.split(':', 1)[-1]
 			for n in range(checks):
 				if not os.path.exists(p):
@@ -101,7 +101,7 @@ class DummyTests(unittest.TestCase):
 	@classmethod
 	def tearDownClass(cls):
 		if cls.proc:
-			cls.proc.stdin.close()
+			cls.proc.terminate()
 			timeout, checks = 4, 10
 			for n in range(checks):
 				if cls.proc.poll() is None:
