@@ -332,6 +332,8 @@ class PulseEventInfo(PulseObject):
 
 class Pulse(object):
 
+	_ctx = None
+
 	def __init__(self, client_name=None, server=None, connect=True, threading_lock=False):
 		'''Connects to specified pulse server by default.
 			Specifying "connect=False" here prevents that, but be sure to call connect() later.
@@ -366,14 +368,20 @@ class Pulse(object):
 		self._loop_running = self._loop_closed = False
 		self._api = c.pa.mainloop_get_api(self._loop)
 
-		self._ctx, self._ret = c.pa.context_new(self._api, self.name), c.pa.return_value()
-		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
-
-		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
+		self._ctx_init()
 		self.event_types = sorted(PulseEventTypeEnum._values.values())
 		self.event_facilities = sorted(PulseEventFacilityEnum._values.values())
 		self.event_masks = sorted(PulseEventMaskEnum._values.values())
 		self.event_callback = None
+
+	def _ctx_init(self):
+		if self._ctx:
+			with self._loop_lock:
+				self.disconnect()
+				c.pa.context_unref(self._ctx)
+		self._ctx, self._ret = c.pa.context_new(self._api, self.name), c.pa.return_value()
+		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
+		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
 
 	def connect(self, autospawn=False, wait=False):
 		'''Connect to pulseaudio server.
@@ -382,6 +390,7 @@ class Pulse(object):
 		if self._loop_closed:
 			raise PulseError('Eventloop object was already'
 				' destroyed and cannot be reused from this instance.')
+		if self.connected is not None: self._ctx_init()
 		flags, self.connected = 0, None
 		if not autospawn: flags |= c.PA_CONTEXT_NOAUTOSPAWN
 		if wait: flags |= c.PA_CONTEXT_NOFAIL

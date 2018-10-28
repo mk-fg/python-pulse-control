@@ -20,8 +20,8 @@ class adict(dict):
 		super(adict, self).__init__(*args, **kws)
 		self.__dict__ = self
 
-def dummy_pulse_init():
-	info = adict(proc=None, tmp_dir=None)
+def dummy_pulse_init(info=None):
+	if not info: info = adict(proc=None, tmp_dir=None)
 	try: _dummy_pulse_init(info)
 	except Exception:
 		dummy_pulse_cleanup(info)
@@ -40,36 +40,42 @@ def _dummy_pulse_init(info):
 	env_tmpdir, env_debug, env_reuse = map(
 		os.environ.get, ['PA_TMPDIR', 'PA_DEBUG', 'PA_REUSE'] )
 
-	tmp_base = env_tmpdir
-	if not tmp_base: tmp_base = info.tmp_dir = tempfile.mkdtemp(prefix='pulsectl-tests.')
+	tmp_base = env_tmpdir or info.get('tmp_dir')
+	if not tmp_base:
+		tmp_base = info.tmp_dir = tempfile.mkdtemp(prefix='pulsectl-tests.')
+		info.sock_unix = None
 	tmp_base = os.path.realpath(tmp_base)
 	tmp_path = ft.partial(os.path.join, tmp_base)
 
 	# Pick some random available localhost ports
-	bind = ( ['127.0.0.1', 0, socket.AF_INET],
-		['::1', 0, socket.AF_INET6], ['127.0.0.1', 0, socket.AF_INET] )
-	for n, spec in enumerate(bind):
-		if env_reuse:
-			spec[1] = int(env_reuse.split(':')[n])
-			continue
-		addr, p, af = spec
-		with contextlib.closing(socket.socket(af, socket.SOCK_STREAM)) as s:
-			s.bind((addr, p))
-			s.listen(1)
-			spec[1] = s.getsockname()[1]
-	info.update(
-		sock_unix='unix:{}'.format(tmp_path('pulse', 'native')),
-		sock_tcp4='tcp4:{}:{}'.format(bind[0][0], bind[0][1]),
-		sock_tcp6='tcp6:[{}]:{}'.format(bind[1][0], bind[1][1]),
-		sock_tcp_cli=tuple(bind[2][:2]) )
+	if not info.get('sock_unix'):
+		bind = ( ['127.0.0.1', 0, socket.AF_INET],
+			['::1', 0, socket.AF_INET6], ['127.0.0.1', 0, socket.AF_INET] )
+		for n, spec in enumerate(bind):
+			if env_reuse:
+				spec[1] = int(env_reuse.split(':')[n])
+				continue
+			addr, p, af = spec
+			with contextlib.closing(socket.socket(af, socket.SOCK_STREAM)) as s:
+				s.bind((addr, p))
+				s.listen(1)
+				spec[1] = s.getsockname()[1]
+		info.update(
+			sock_unix='unix:{}'.format(tmp_path('pulse', 'native')),
+			sock_tcp4='tcp4:{}:{}'.format(bind[0][0], bind[0][1]),
+			sock_tcp6='tcp6:[{}]:{}'.format(bind[1][0], bind[1][1]),
+			sock_tcp_cli=tuple(bind[2][:2]) )
 
-	if not env_reuse:
+	if info.proc and info.proc.poll() is not None: info.proc = None
+	if not env_reuse and not info.get('proc'):
 		env = dict(XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base)
 		log_level = 'error' if not env_debug else 'debug'
 		info.proc = subprocess.Popen(
 			[ 'pulseaudio', '--daemonize=no', '--fail',
 				'-nF', '/dev/stdin', '--exit-idle-time=-1', '--log-level={}'.format(log_level) ],
 			env=env, stdin=subprocess.PIPE )
+		bind4, bind6 = info.sock_tcp4.split(':'), info.sock_tcp6.rsplit(':', 1)
+		bind4, bind6 = (bind4[1], bind4[2]), (bind6[0].split(':', 1)[1].strip('[]'), bind6[1])
 		for line in [
 				'module-augment-properties',
 
@@ -86,9 +92,9 @@ def _dummy_pulse_init(info):
 				'module-stream-restore',
 
 				'module-native-protocol-tcp auth-anonymous=true'
-					' listen={addr4} port={port4}'.format(addr4=bind[0][0], port4=bind[0][1]),
+					' listen={} port={}'.format(*bind4),
 				'module-native-protocol-tcp auth-anonymous=true'
-					' listen={addr6} port={port6}'.format(addr6=bind[1][0], port6=bind[1][1]),
+					' listen={} port={}'.format(*bind6),
 				'module-native-protocol-unix',
 
 				'module-null-sink',
@@ -104,7 +110,8 @@ def _dummy_pulse_init(info):
 			break
 		else: raise AssertionError(p)
 
-def dummy_pulse_cleanup(info):
+def dummy_pulse_cleanup(info=None, proc=None, tmp_dir=None):
+	if not info: info = adict(proc=proc, tmp_dir=tmp_dir)
 	if info.proc:
 		try: info.proc.terminate()
 		except OSError: pass
@@ -434,6 +441,38 @@ class PulseCrashTests(unittest.TestCase):
 				info.proc.wait()
 				with self.assertRaises(pulsectl.PulseOperationFailed):
 					for si in pulse.sink_list(): raise AssertionError(si)
+				self.assertFalse(pulse.connected)
+		finally: dummy_pulse_cleanup(info)
+
+	def test_reconnect(self):
+		info = dummy_pulse_init()
+		try:
+			with pulsectl.Pulse('t', server=info.sock_unix, connect=False) as pulse:
+				with self.assertRaises(Exception):
+					for si in pulse.sink_list(): raise AssertionError(si)
+
+				pulse.connect(autospawn=False)
+				self.assertTrue(pulse.connected)
+				for si in pulse.sink_list(): self.assertTrue(si)
+				info.proc.terminate()
+				info.proc.wait()
+				with self.assertRaises(Exception):
+					for si in pulse.sink_list(): raise AssertionError(si)
+				self.assertFalse(pulse.connected)
+
+				dummy_pulse_init(info)
+				pulse.connect(autospawn=False, wait=True)
+				self.assertTrue(pulse.connected)
+				for si in pulse.sink_list(): self.assertTrue(si)
+
+				pulse.disconnect()
+				with self.assertRaises(Exception):
+					for si in pulse.sink_list(): raise AssertionError(si)
+				self.assertFalse(pulse.connected)
+				pulse.connect(autospawn=False)
+				self.assertTrue(pulse.connected)
+				for si in pulse.sink_list(): self.assertTrue(si)
+
 		finally: dummy_pulse_cleanup(info)
 
 

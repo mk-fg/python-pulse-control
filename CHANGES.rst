@@ -8,9 +8,11 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 17.12.2
+Last synced/updated: 18.10.5
 
 ---------------------------------------------------------------------------
+
+- 18.10.5: pulse.connect() can now be used to reconnect to same server.
 
 - 17.12.2: Use pa_card_profile_info2 / profiles2 introspection API.
 
