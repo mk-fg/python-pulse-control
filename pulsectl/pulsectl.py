@@ -467,7 +467,7 @@ class Pulse(object):
 			cb = lambda s=True,k=act_id: self._actions.update({k: bool(s)})
 			if not raw: cb = c.PA_CONTEXT_SUCCESS_CB_T(lambda ctx,s,d,cb=cb: cb(s))
 			yield cb
-			while not self._loop_stop and self._actions[act_id] is None: self._pulse_iterate()
+			while self.connected and self._actions[act_id] is None: self._pulse_iterate()
 			if not self._actions[act_id]: raise PulseOperationFailed(act_id)
 		finally: self._actions.pop(act_id, None)
 
