@@ -2,7 +2,7 @@
 from __future__ import unicode_literals, print_function
 
 import itertools as it, operator as op, functools as ft
-import unittest, contextlib, atexit, signal
+import unittest, contextlib, atexit, signal, collections as cs
 import os, sys, time, subprocess, tempfile, shutil, socket
 
 if sys.version_info.major > 2: unicode = str
@@ -13,107 +13,134 @@ except ImportError:
 	import pulsectl
 
 
-def setup_teardown(cls):
-	for sig in 'hup', 'term', 'int':
-		signal.signal(getattr(signal, 'sig{}'.format(sig).upper()), lambda sig,frm: sys.exit())
-	atexit.register(cls.tearDownClass)
+
+
+class adict(dict):
+	def __init__(self, *args, **kws):
+		super(adict, self).__init__(*args, **kws)
+		self.__dict__ = self
+
+def dummy_pulse_init():
+	info = adict(proc=None, tmp_dir=None)
+	try: _dummy_pulse_init(info)
+	except Exception:
+		dummy_pulse_cleanup(info.proc, info.tmp_dir)
+		raise
+	return info
+
+def _dummy_pulse_init(info):
+	# These are to allow starting pulse with debug logging
+	#  or using pre-started (e.g. with gdb attached) instance.
+	# Note: PA_REUSE=1234:1234:1235 are localhost tcp ports for tcp modules.
+	# For example:
+	#  t1% env -i XDG_RUNTIME_DIR=/tmp/pulsectl-tests \
+	#       gdb --args /usr/bin/pulseaudio --daemonize=no --fail \
+	#       -nF /tmp/pulsectl-tests/conf.pa --exit-idle-time=-1 --log-level=debug
+	#  t2% PA_TMPDIR=/tmp/pulsectl-tests PA_REUSE=1234,1235 python -m -m unittest pulsectl.tests.all
+	env_tmpdir, env_debug, env_reuse = map(
+		os.environ.get, ['PA_TMPDIR', 'PA_DEBUG', 'PA_REUSE'] )
+
+	tmp_base = env_tmpdir
+	if not tmp_base: tmp_base = info.tmp_dir = tempfile.mkdtemp(prefix='pulsectl-tests.')
+	tmp_base = os.path.realpath(tmp_base)
+	tmp_path = ft.partial(os.path.join, tmp_base)
+
+	# Pick some random available localhost ports
+	bind = ( ['127.0.0.1', 0, socket.AF_INET],
+		['::1', 0, socket.AF_INET6], ['127.0.0.1', 0, socket.AF_INET] )
+	for n, spec in enumerate(bind):
+		if env_reuse:
+			spec[1] = int(env_reuse.split(':')[n])
+			continue
+		addr, p, af = spec
+		with contextlib.closing(socket.socket(af, socket.SOCK_STREAM)) as s:
+			s.bind((addr, p))
+			s.listen(1)
+			spec[1] = s.getsockname()[1]
+	info.update(
+		sock_unix='unix:{}'.format(tmp_path('pulse', 'native')),
+		sock_tcp4='tcp4:{}:{}'.format(bind[0][0], bind[0][1]),
+		sock_tcp6='tcp6:[{}]:{}'.format(bind[1][0], bind[1][1]),
+		sock_tcp_cli=tuple(bind[2][:2]) )
+
+	if not env_reuse:
+		env = dict(XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base)
+		log_level = 'error' if not env_debug else 'debug'
+		info.proc = subprocess.Popen(
+			[ 'pulseaudio', '--daemonize=no', '--fail',
+				'-nF', '/dev/stdin', '--exit-idle-time=-1', '--log-level={}'.format(log_level) ],
+			env=env, stdin=subprocess.PIPE )
+		for line in [
+				'module-augment-properties',
+
+				'module-default-device-restore',
+				'module-rescue-streams',
+				'module-always-sink',
+				'module-intended-roles',
+				'module-suspend-on-idle',
+				'module-position-event-sounds',
+				'module-role-cork',
+				'module-filter-heuristics',
+				'module-filter-apply',
+				'module-switch-on-port-available',
+				'module-stream-restore',
+
+				'module-native-protocol-tcp auth-anonymous=true'
+					' listen={addr4} port={port4}'.format(addr4=bind[0][0], port4=bind[0][1]),
+				'module-native-protocol-tcp auth-anonymous=true'
+					' listen={addr6} port={port6}'.format(addr6=bind[1][0], port6=bind[1][1]),
+				'module-native-protocol-unix',
+
+				'module-null-sink',
+				'module-null-sink' ]:
+			if line.startswith('module-'): line = 'load-module {}'.format(line)
+			info.proc.stdin.write('{}\n'.format(line).encode('utf-8'))
+		info.proc.stdin.close()
+		timeout, checks, p = 4, 10, info.sock_unix.split(':', 1)[-1]
+		for n in range(checks):
+			if not os.path.exists(p):
+				time.sleep(float(timeout) / checks)
+				continue
+			break
+		else: raise AssertionError(p)
+
+def dummy_pulse_cleanup(proc=None, tmp_dir=None):
+	if proc:
+		try: proc.terminate()
+		except OSError: pass
+		timeout, checks = 4, 10
+		for n in range(checks):
+			if proc.poll() is None:
+				time.sleep(float(timeout) / checks)
+				continue
+			break
+		else:
+			try: proc.kill()
+			except OSError: pass
+		proc.wait()
+	if tmp_dir:
+		shutil.rmtree(tmp_dir, ignore_errors=True)
+		tmp_dir = None
 
 
 class DummyTests(unittest.TestCase):
 
-	tmp_dir = proc = None
-	sock_unix = sock_tcp4 = sock_tcp6 = None
+	proc = tmp_dir = None
 
 	@classmethod
 	def setUpClass(cls):
-		setup_teardown(cls)
+		assert not cls.proc and not cls.tmp_dir, [cls.proc, cls.tmp_dir]
 
-		# These are to allow starting pulse with debug logging
-		#  or using pre-started (e.g. with gdb attached) instance
-		# For example:
-		#  t1% env -i XDG_RUNTIME_DIR=/tmp/pulsectl-tests \
-		#       gdb --args /usr/bin/pulseaudio --daemonize=no --fail \
-		#       -nF /tmp/pulsectl-tests/conf.pa --exit-idle-time=-1 --log-level=debug
-		#  t2% PA_TMPDIR=/tmp/pulsectl-tests PA_REUSE=t python -m -m unittest pulsectl.tests.all
-		env_tmpdir, env_debug, env_reuse = map(
-			os.environ.get, ['PA_TMPDIR', 'PA_DEBUG', 'PA_REUSE'] )
+		for sig in 'hup', 'term', 'int':
+			signal.signal(getattr(signal, 'sig{}'.format(sig).upper()), lambda sig,frm: sys.exit())
+		atexit.register(cls.tearDownClass)
 
-		tmp_base = env_tmpdir or cls.tmp_dir
-		if not tmp_base: tmp_base = cls.tmp_dir = tempfile.mkdtemp(prefix='pulsectl-tests.')
-		tmp_base = os.path.realpath(tmp_base)
-		tmp_path = ft.partial(os.path.join, tmp_base)
-
-		# Pick some random available localhost ports
-		bind = ( ['127.0.0.1', 0, socket.AF_INET],
-			['::1', 0, socket.AF_INET6], ['127.0.0.1', 0, socket.AF_INET] )
-		for spec in bind:
-			addr, p, af = spec
-			with contextlib.closing(socket.socket(af, socket.SOCK_STREAM)) as s:
-				s.bind((addr, p))
-				s.listen(1)
-				spec[1] = s.getsockname()[1]
-		cls.sock_unix = 'unix:{}'.format(tmp_path('pulse', 'native'))
-		cls.sock_tcp4 = 'tcp4:{}:{}'.format(bind[0][0], bind[0][1])
-		cls.sock_tcp6 = 'tcp6:[{}]:{}'.format(bind[1][0], bind[1][1])
-		cls.sock_tcp_cli = tuple(bind[2][:2])
-
-		if not env_reuse and not cls.proc:
-			env = dict(XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base)
-			log_level = 'error' if not env_debug else 'debug'
-			cls.proc = subprocess.Popen(
-				[ 'pulseaudio', '--daemonize=no', '--fail',
-					'-nF', '/dev/stdin', '--exit-idle-time=-1', '--log-level={}'.format(log_level) ],
-				env=env, stdin=subprocess.PIPE )
-			for line in [
-					'module-augment-properties',
-
-					'module-default-device-restore',
-					'module-rescue-streams',
-					'module-always-sink',
-					'module-intended-roles',
-					'module-suspend-on-idle',
-					'module-position-event-sounds',
-					'module-role-cork',
-					'module-filter-heuristics',
-					'module-filter-apply',
-					'module-switch-on-port-available',
-					'module-stream-restore',
-
-					'module-native-protocol-tcp auth-anonymous=true'
-						' listen={addr4} port={port4}'.format(addr4=bind[0][0], port4=bind[0][1]),
-					'module-native-protocol-tcp auth-anonymous=true'
-						' listen={addr6} port={port6}'.format(addr6=bind[1][0], port6=bind[1][1]),
-					'module-native-protocol-unix',
-
-					'module-null-sink',
-					'module-null-sink' ]:
-				if line.startswith('module-'): line = 'load-module {}'.format(line)
-				cls.proc.stdin.write('{}\n'.format(line).encode('utf-8'))
-			cls.proc.stdin.close()
-			timeout, checks, p = 4, 10, cls.sock_unix.split(':', 1)[-1]
-			for n in range(checks):
-				if not os.path.exists(p):
-					time.sleep(float(timeout) / checks)
-					continue
-				break
-			else: raise AssertionError(p)
+		cls.instance_info = dummy_pulse_init()
+		for k, v in cls.instance_info.items(): setattr(cls, k, v)
 
 	@classmethod
 	def tearDownClass(cls):
-		if cls.proc:
-			cls.proc.terminate()
-			timeout, checks = 4, 10
-			for n in range(checks):
-				if cls.proc.poll() is None:
-					time.sleep(float(timeout) / checks)
-					continue
-				break
-			else: cls.proc.kill()
-			cls.proc.wait()
-			cls.proc = None
-		if cls.tmp_dir:
-			shutil.rmtree(cls.tmp_dir)
-			cls.tmp_dir = None
+		dummy_pulse_cleanup(cls.proc, cls.tmp_dir)
 
 
 	# Fuzzy float comparison is necessary for volume,
