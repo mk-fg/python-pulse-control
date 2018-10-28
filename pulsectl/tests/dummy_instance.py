@@ -24,7 +24,7 @@ def dummy_pulse_init():
 	info = adict(proc=None, tmp_dir=None)
 	try: _dummy_pulse_init(info)
 	except Exception:
-		dummy_pulse_cleanup(info.proc, info.tmp_dir)
+		dummy_pulse_cleanup(info)
 		raise
 	return info
 
@@ -104,23 +104,24 @@ def _dummy_pulse_init(info):
 			break
 		else: raise AssertionError(p)
 
-def dummy_pulse_cleanup(proc=None, tmp_dir=None):
-	if proc:
-		try: proc.terminate()
+def dummy_pulse_cleanup(info):
+	if info.proc:
+		try: info.proc.terminate()
 		except OSError: pass
 		timeout, checks = 4, 10
 		for n in range(checks):
-			if proc.poll() is None:
+			if info.proc.poll() is None:
 				time.sleep(float(timeout) / checks)
 				continue
 			break
 		else:
-			try: proc.kill()
+			try: info.proc.kill()
 			except OSError: pass
-		proc.wait()
-	if tmp_dir:
-		shutil.rmtree(tmp_dir, ignore_errors=True)
-		tmp_dir = None
+		info.proc.wait()
+		info.proc = None
+	if info.tmp_dir:
+		shutil.rmtree(info.tmp_dir, ignore_errors=True)
+		info.tmp_dir = None
 
 
 class DummyTests(unittest.TestCase):
@@ -140,7 +141,7 @@ class DummyTests(unittest.TestCase):
 
 	@classmethod
 	def tearDownClass(cls):
-		dummy_pulse_cleanup(cls.proc, cls.tmp_dir)
+		dummy_pulse_cleanup(cls.instance_info)
 
 
 	# Fuzzy float comparison is necessary for volume,
@@ -415,6 +416,25 @@ class DummyTests(unittest.TestCase):
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
 			self.assertNotIn(sr_name1, sr_dict)
 			self.assertNotIn(sr_name2, sr_dict)
+
+
+class PulseCrashTests(unittest.TestCase):
+
+	@classmethod
+	def setUpClass(cls):
+		for sig in 'hup', 'term', 'int':
+			signal.signal(getattr(signal, 'sig{}'.format(sig).upper()), lambda sig,frm: sys.exit())
+
+	def test_crash_after_connect(self):
+		info = dummy_pulse_init()
+		try:
+			with pulsectl.Pulse('t', server=info.sock_unix) as pulse:
+				for si in pulse.sink_list(): self.assertTrue(si)
+				info.proc.terminate()
+				info.proc.wait()
+				with self.assertRaises(pulsectl.PulseOperationFailed):
+					for si in pulse.sink_list(): raise AssertionError(si)
+		finally: dummy_pulse_cleanup(info)
 
 
 if __name__ == '__main__': unittest.main()
