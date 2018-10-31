@@ -2,7 +2,7 @@
 from __future__ import unicode_literals, print_function
 
 import itertools as it, operator as op, functools as ft
-import unittest, contextlib, atexit, signal, collections as cs
+import unittest, contextlib, atexit, signal
 import os, sys, time, subprocess, tempfile, shutil, socket
 
 if sys.version_info.major > 2: unicode = str
