@@ -367,6 +367,7 @@ class Pulse(object):
 		self._loop, self._loop_lock = c.pa.mainloop_new(), FakeLock()
 		self._loop_running = self._loop_closed = False
 		self._api = c.pa.mainloop_get_api(self._loop)
+		self._ret = c.pa.return_value()
 
 		self._ctx_init()
 		self.event_types = sorted(PulseEventTypeEnum._values.values())
@@ -379,7 +380,7 @@ class Pulse(object):
 			with self._loop_lock:
 				self.disconnect()
 				c.pa.context_unref(self._ctx)
-		self._ctx, self._ret = c.pa.context_new(self._api, self.name), c.pa.return_value()
+		self._ctx = c.pa.context_new(self._api, self.name)
 		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
 		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
 
