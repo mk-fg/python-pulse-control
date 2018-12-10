@@ -264,6 +264,7 @@ class PA_CLIENT_INFO(Structure):
 		('name', c_char_p),
 		('owner_module', c_uint32),
 		('driver', c_char_p),
+		('proplist', POINTER(PA_PROPLIST)),
 	]
 
 class PA_SERVER_INFO(Structure):
