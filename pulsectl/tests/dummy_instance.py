@@ -424,6 +424,46 @@ class DummyTests(unittest.TestCase):
 			self.assertNotIn(sr_name1, sr_dict)
 			self.assertNotIn(sr_name2, sr_dict)
 
+	def test_stream_move(self):
+		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
+			stream_started = list()
+			def stream_ev_cb(ev):
+				if ev.t != 'new': return
+				stream_started.append(ev.index)
+				raise pulsectl.PulseLoopStop
+			pulse.event_mask_set('sink_input')
+			pulse.event_callback_set(stream_ev_cb)
+
+			paplay = subprocess.Popen(
+				['paplay', '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
+			try:
+				if not stream_started: pulse.event_listen()
+				self.assertTrue(bool(stream_started))
+				stream_idx, = stream_started
+				stream = pulse.sink_input_info(stream_idx)
+
+				sink_indexes = set(map(op.attrgetter('index'), pulse.sink_list()))
+				sink1 = stream.sink
+				sink2 = sink_indexes.difference([sink1]).pop()
+				sink_nx = max(sink_indexes) + 1
+
+				pulse.sink_input_move(stream.index, sink2)
+				stream_new = pulse.sink_input_info(stream_idx)
+				self.assertEqual(stream.sink, sink1) # old info doesn't get updated
+				self.assertEqual(stream_new.sink, sink2)
+
+				pulse.sink_input_move(stream.index, sink1) # move it back
+				stream_new = pulse.sink_input_info(stream_idx)
+				self.assertEqual(stream.sink, sink1)
+				self.assertEqual(stream_new.sink, sink1)
+
+				with self.assertRaises(pulsectl.PulseOperationFailed):
+					pulse.sink_input_move(stream.index, sink_nx)
+
+			finally:
+				if paplay.poll() is None: paplay.kill()
+				paplay.wait()
+
 
 class PulseCrashTests(unittest.TestCase):
 
