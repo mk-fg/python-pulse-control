@@ -96,13 +96,18 @@ Current code logic is that all methods are invoked through the Pulse instance,
 and everything returned from these are "Pulse-Something-Info" objects - thin
 wrappers around C structs that describe the thing, without any methods attached.
 
+Aside from a few added convenience methods, most of them should have similar
+signature and do same thing as their C libpulse API counterparts, so see
+`pulseaudio doxygen documentation`_ for more information on them.
+
 Pulse client can be integrated into existing eventloop (e.g. asyncio, twisted,
 etc) using ``Pulse.set_poll_func()`` or ``Pulse.event_listen()`` in a separate
 thread.
 
 Somewhat extended usage example can be found in `pulseaudio-mixer-cli`_ project
-code.
+code, as well as tests here.
 
+.. _pulseaudio doxygen documentation: https://freedesktop.org/software/pulseaudio/doxygen/introspect_8h.html
 .. _pulseaudio-mixer-cli: https://github.com/mk-fg/pulseaudio-mixer-cli/blob/master/pa-mixer-mk3.py
 
 
