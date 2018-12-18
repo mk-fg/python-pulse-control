@@ -438,23 +438,20 @@ class DummyTests(unittest.TestCase):
 				['paplay', '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
 			try:
 				if not stream_started: pulse.event_listen()
-				self.assertTrue(bool(stream_started))
 				stream_idx, = stream_started
 				stream = pulse.sink_input_info(stream_idx)
-
-				sink_indexes = set(map(op.attrgetter('index'), pulse.sink_list()))
+				sink_indexes = set(s.index for s in pulse.sink_list())
 				sink1 = stream.sink
 				sink2 = sink_indexes.difference([sink1]).pop()
 				sink_nx = max(sink_indexes) + 1
 
 				pulse.sink_input_move(stream.index, sink2)
-				stream_new = pulse.sink_input_info(stream_idx)
+				stream_new = pulse.sink_input_info(stream.index)
 				self.assertEqual(stream.sink, sink1) # old info doesn't get updated
 				self.assertEqual(stream_new.sink, sink2)
 
 				pulse.sink_input_move(stream.index, sink1) # move it back
-				stream_new = pulse.sink_input_info(stream_idx)
-				self.assertEqual(stream.sink, sink1)
+				stream_new = pulse.sink_input_info(stream.index)
 				self.assertEqual(stream_new.sink, sink1)
 
 				with self.assertRaises(pulsectl.PulseOperationFailed):
