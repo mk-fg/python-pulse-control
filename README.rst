@@ -319,7 +319,7 @@ There are no "expected" test case failures.
 Changelog and versioning scheme
 ```````````````````````````````
 
-This package uses one-version-per commit scheme (updated by pre-commit hook)
+This package uses one-version-per-commit scheme (updated by pre-commit hook)
 and pretty much one release per git commit, unless more immediate follow-up
 commits are planned or too lazy to run ``py setup.py sdist bdist_wheel upload``
 for some trivial README typo fix.

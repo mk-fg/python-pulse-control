@@ -31,6 +31,10 @@ def assert_pulse_object(obj):
 		raise TypeError( 'Pulse<something>Info'
 			' object is required instead of value: [{}] {}', type(obj), obj )
 
+class FakeLock():
+	def __enter__(self): return self
+	def __exit__(self, *err): pass
+
 
 @ft.total_ordering
 class EnumValue(object):
@@ -80,10 +84,6 @@ class Enum(object):
 
 	def __repr__(self):
 		return '<Enum {} [{}]>'.format(self._name, ' '.join(sorted(self._values.keys())))
-
-class FakeLock():
-	def __enter__(self): return self
-	def __exit__(self, *err): pass
 
 
 PulseEventTypeEnum = Enum('event-type', c.PA_EVENT_TYPE_MAP)
