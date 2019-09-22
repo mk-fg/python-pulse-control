@@ -819,7 +819,7 @@ class Pulse(object):
 		'''Returns peak (max) value in 0-1.0 range for samples in source/stream within timespan.
 			Resulting value is what pulseaudio returns as
 				PA_SAMPLE_FLOAT32BE float after "timeout" seconds.
-			This can be used, to detect if there's any sound
+			This can be used to detect if there's any sound
 				on the microphone or any sound played through a sink via its monitor_source index,
 				or same for any specific stream connected to these (if "stream_idx" is passed).
 			Example - get peak for specific sink input "si" for 0.8 seconds:
@@ -833,13 +833,12 @@ class Pulse(object):
 			c.pa.stream_peek(s, buff, c.byref(bs))
 			try:
 				if not buff or bs.value < 4: return
-			# This assumes that native byte order for floats is BE, same as pavucontrol
+				# This assumes that native byte order for floats is BE, same as pavucontrol
 				samples[0] = max(samples[0], c.cast(buff, c.POINTER(c.c_float))[0])
 			finally:
 				if bs.value: c.pa.stream_drop(s)
 
-		if stream_idx is not None: # monitor specific stream instead of all
-			c.pa.stream_set_monitor_stream(s, stream_idx)
+		if stream_idx is not None: c.pa.stream_set_monitor_stream(s, stream_idx)
 		c.pa.stream_set_read_callback(s, read_cb, None)
 		try:
 			c.pa.stream_connect_record( s, str(source_idx).encode('utf-8'),
