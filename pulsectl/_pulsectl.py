@@ -95,6 +95,13 @@ PA_SUBSCRIPTION_EVENT_CHANGE = 0x0010
 PA_SUBSCRIPTION_EVENT_REMOVE = 0x0020
 PA_SUBSCRIPTION_EVENT_TYPE_MASK = 0x0030
 
+PA_SAMPLE_FLOAT32BE = 5
+
+PA_STREAM_DONT_MOVE = 0x0200
+PA_STREAM_PEAK_DETECT = 0x0800
+PA_STREAM_ADJUST_LATENCY = 0x2000
+PA_STREAM_DONT_INHIBIT_AUTO_SUSPEND = 0x8000
+
 def c_enum_map(**values):
 	return dict((v, force_str(k)) for k,v in values.items())
 
@@ -340,6 +347,15 @@ class PA_EXT_STREAM_RESTORE_INFO(Structure):
 		('mute', c_int),
 	]
 
+class PA_BUFFER_ATTR(Structure):
+	_fields_ = [
+		('maxlength', c_uint32),
+		('tlength', c_uint32),
+		('prebuf', c_uint32),
+		('minreq', c_uint32),
+		('fragsize', c_uint32),
+	]
+
 
 class POLLFD(Structure):
 	_fields_ = [
@@ -441,6 +457,15 @@ PA_SUBSCRIBE_CB_T = CFUNCTYPE(c_void_p,
 	POINTER(PA_CONTEXT),
 	c_int,
 	c_int,
+	c_void_p)
+
+PA_STREAM_REQUEST_CB_T = CFUNCTYPE(c_void_p,
+	POINTER(PA_STREAM),
+	c_int,
+	c_void_p)
+
+PA_STREAM_NOTIFY_CB_T = CFUNCTYPE(c_void_p,
+	POINTER(PA_STREAM),
 	c_void_p)
 
 
@@ -572,7 +597,21 @@ class LibPulse(object):
 			[POINTER(PA_CHANNEL_MAP)], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
 		pa_channel_map_snprint=([c_str_p, c_int, POINTER(PA_CHANNEL_MAP)], c_str_p),
 		pa_channel_map_parse=(
-			[POINTER(PA_CHANNEL_MAP), c_str_p], (POINTER(PA_CHANNEL_MAP), 'not_null') ) )
+			[POINTER(PA_CHANNEL_MAP), c_str_p], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
+		pa_stream_new=(
+			[POINTER(PA_CONTEXT), c_str_p, POINTER(PA_SAMPLE_SPEC), POINTER(PA_CHANNEL_MAP)],
+			POINTER(PA_STREAM) ),
+		pa_stream_set_monitor_stream=([POINTER(PA_STREAM), c_uint32], 'int_check_ge0'),
+		pa_stream_set_read_callback=[POINTER(PA_STREAM), PA_STREAM_REQUEST_CB_T, c_void_p],
+		pa_stream_set_suspended_callback=[
+			POINTER(PA_STREAM), POINTER(PA_STREAM_NOTIFY_CB_T), c_void_p ],
+		pa_stream_connect_record=(
+			[POINTER(PA_STREAM), c_str_p, POINTER(PA_BUFFER_ATTR), c_int], 'int_check_ge0' ),
+		pa_stream_unref=[POINTER(PA_STREAM)],
+		pa_stream_peek=(
+			[POINTER(PA_STREAM), POINTER(c_void_p), POINTER(c_int)], 'int_check_ge0' ),
+		pa_stream_drop=([POINTER(PA_STREAM)], 'int_check_ge0'),
+		pa_stream_disconnect=([POINTER(PA_STREAM)], 'int_check_ge0') )
 
 	class CallError(Exception): pass
 

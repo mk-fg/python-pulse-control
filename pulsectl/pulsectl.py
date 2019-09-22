@@ -815,6 +815,49 @@ class Pulse(object):
 		c.pa.mainloop_set_poll_func(self._loop, self._pa_poll_cb, None)
 
 
+	def get_peak_sample(self, source_idx, timeout, stream_idx=None):
+		'''Returns peak (max) value in 0-1.0 range for samples in source/stream within timespan.
+			Resulting value is what pulseaudio returns as
+				PA_SAMPLE_FLOAT32BE float after "timeout" seconds.
+			This can be used, to detect if there's any sound
+				on the microphone or any sound played through a sink via its monitor_source index,
+				or same for any specific stream connected to these (if "stream_idx" is passed).
+			Example - get peak for specific sink input "si" for 0.8 seconds:
+				pulse.get_peak_sample(pulse.sink_info(si.sink).monitor_source, 0.8, si.index)'''
+		ss = c.PA_SAMPLE_SPEC(format=c.PA_SAMPLE_FLOAT32BE, rate=25, channels=1)
+		samples, s = [0], c.pa.stream_new(self._ctx, 'peak detect', c.byref(ss), None)
+
+		@c.PA_STREAM_REQUEST_CB_T
+		def read_cb(s, bs, userdata):
+			buff, bs = c.c_void_p(), c.c_int(bs)
+			c.pa.stream_peek(s, buff, c.byref(bs))
+			try:
+				if not buff or bs.value < 4: return
+			# This assumes that native byte order for floats is BE, same as pavucontrol
+				samples[0] = max(samples[0], c.cast(buff, c.POINTER(c.c_float))[0])
+			finally:
+				if bs.value: c.pa.stream_drop(s)
+
+		if stream_idx is not None: # monitor specific stream instead of all
+			c.pa.stream_set_monitor_stream(s, stream_idx)
+		c.pa.stream_set_read_callback(s, read_cb, None)
+		try:
+			c.pa.stream_connect_record( s, str(source_idx).encode('utf-8'),
+				c.PA_BUFFER_ATTR(fragsize=4, maxlength=2**32-1),
+				c.PA_STREAM_DONT_MOVE | c.PA_STREAM_PEAK_DETECT |
+					c.PA_STREAM_ADJUST_LATENCY | c.PA_STREAM_DONT_INHIBIT_AUTO_SUSPEND )
+		except c.pa.CallError:
+			c.pa.stream_unref(s)
+			raise
+
+		try: self._pulse_poll(timeout)
+		finally:
+			try: c.pa.stream_disconnect(s)
+			except c.pa.CallError: pass # stream was removed
+
+		return min(1.0, samples[0])
+
+
 def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, retry_delay=0.3):
 	'''Returns connected CLI interface socket (as file object, unless as_file=False),
 			where one can send same commands (as lines) as to "pacmd" tool

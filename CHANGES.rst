@@ -8,9 +8,11 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 18.12.2
+Last synced/updated: 19.9.1
 
 ---------------------------------------------------------------------------
+
+- 19.9.1: Add pulse.get_peak_sample() func for getting volume peak within timespan.
 
 - 18.10.5: pulse.connect() can now be used to reconnect to same server.
 
