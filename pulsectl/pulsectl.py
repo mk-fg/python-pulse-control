@@ -825,10 +825,14 @@ class Pulse(object):
 			This can be used to detect if there's any sound
 				on the microphone or any sound played through a sink via its monitor_source index,
 				or same for any specific stream connected to these (if "stream_idx" is passed).
+			Sample stream masquerades as
+				application.id=org.PulseAudio.pavucontrol to avoid being listed in various mixer apps.
 			Example - get peak for specific sink input "si" for 0.8 seconds:
 				pulse.get_peak_sample(pulse.sink_info(si.sink).monitor_source, 0.8, si.index)'''
+		samples, proplist = [0], c.pa.proplist_from_string('application.id=org.PulseAudio.pavucontrol')
 		ss = c.PA_SAMPLE_SPEC(format=c.PA_SAMPLE_FLOAT32BE, rate=25, channels=1)
-		samples, s = [0], c.pa.stream_new(self._ctx, 'peak detect', c.byref(ss), None)
+		s = c.pa.stream_new_with_proplist(self._ctx, 'peak detect', c.byref(ss), None, proplist)
+		c.pa.proplist_free(proplist)
 
 		@c.PA_STREAM_REQUEST_CB_T
 		def read_cb(s, bs, userdata):

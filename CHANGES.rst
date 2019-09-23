@@ -8,7 +8,7 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 19.9.4
+Last synced/updated: 19.9.5
 
 ---------------------------------------------------------------------------
 

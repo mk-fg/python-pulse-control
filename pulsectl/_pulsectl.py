@@ -598,13 +598,14 @@ class LibPulse(object):
 		pa_channel_map_snprint=([c_str_p, c_int, POINTER(PA_CHANNEL_MAP)], c_str_p),
 		pa_channel_map_parse=(
 			[POINTER(PA_CHANNEL_MAP), c_str_p], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
-		pa_stream_new=(
-			[POINTER(PA_CONTEXT), c_str_p, POINTER(PA_SAMPLE_SPEC), POINTER(PA_CHANNEL_MAP)],
+		pa_proplist_from_string=([c_str_p], POINTER(PA_PROPLIST)),
+		pa_proplist_free=[POINTER(PA_PROPLIST)],
+		pa_stream_new_with_proplist=(
+			[ POINTER(PA_CONTEXT), c_str_p,
+				POINTER(PA_SAMPLE_SPEC), POINTER(PA_CHANNEL_MAP), POINTER(PA_PROPLIST) ],
 			POINTER(PA_STREAM) ),
 		pa_stream_set_monitor_stream=([POINTER(PA_STREAM), c_uint32], 'int_check_ge0'),
 		pa_stream_set_read_callback=[POINTER(PA_STREAM), PA_STREAM_REQUEST_CB_T, c_void_p],
-		pa_stream_set_suspended_callback=[
-			POINTER(PA_STREAM), POINTER(PA_STREAM_NOTIFY_CB_T), c_void_p ],
 		pa_stream_connect_record=(
 			[POINTER(PA_STREAM), c_str_p, POINTER(PA_BUFFER_ATTR), c_int], 'int_check_ge0' ),
 		pa_stream_unref=[POINTER(PA_STREAM)],
