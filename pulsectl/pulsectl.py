@@ -815,10 +815,13 @@ class Pulse(object):
 		c.pa.mainloop_set_poll_func(self._loop, self._pa_poll_cb, None)
 
 
-	def get_peak_sample(self, source_idx, timeout, stream_idx=None):
+	def get_peak_sample(self, source, timeout, stream_idx=None):
 		'''Returns peak (max) value in 0-1.0 range for samples in source/stream within timespan.
+			"source" can be either int index of pulseaudio source
+				(i.e. source.index), its name (source.name), or None to use default source.
 			Resulting value is what pulseaudio returns as
 				PA_SAMPLE_FLOAT32BE float after "timeout" seconds.
+			If specified source does not exist, 0 should be returned after timeout.
 			This can be used to detect if there's any sound
 				on the microphone or any sound played through a sink via its monitor_source index,
 				or same for any specific stream connected to these (if "stream_idx" is passed).
@@ -840,8 +843,9 @@ class Pulse(object):
 
 		if stream_idx is not None: c.pa.stream_set_monitor_stream(s, stream_idx)
 		c.pa.stream_set_read_callback(s, read_cb, None)
+		if source is not None: source = unicode(source).encode('utf-8')
 		try:
-			c.pa.stream_connect_record( s, str(source_idx).encode('utf-8'),
+			c.pa.stream_connect_record( s, source,
 				c.PA_BUFFER_ATTR(fragsize=4, maxlength=2**32-1),
 				c.PA_STREAM_DONT_MOVE | c.PA_STREAM_PEAK_DETECT |
 					c.PA_STREAM_ADJUST_LATENCY | c.PA_STREAM_DONT_INHIBIT_AUTO_SUSPEND )
