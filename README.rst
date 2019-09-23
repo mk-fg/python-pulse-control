@@ -315,6 +315,9 @@ Any test failures can indicate incompatibilities, bugs in the module code,
 issues with pulseaudio (or its daemon.conf) and underlying dependencies.
 There are no "expected" test case failures.
 
+All tests can run for up to 10 seconds currently (v19.9.6), due to some
+involving playback (using paplay from /dev/urandom) being time-sensitive.
+
 
 Changelog and versioning scheme
 ```````````````````````````````

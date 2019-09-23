@@ -461,6 +461,54 @@ class DummyTests(unittest.TestCase):
 				if paplay.poll() is None: paplay.kill()
 				paplay.wait()
 
+	def test_get_peak_sample(self):
+		# Note: this test takes at least multiple seconds to run
+		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
+			source_any = max(s.index for s in pulse.source_list())
+			source_nx = source_any + 1
+
+			time.sleep(0.3) # make sure previous streams die
+			peak = pulse.get_peak_sample(source_any, 0.3)
+			self.assertEqual(peak, 0)
+
+			stream_started = list()
+			def stream_ev_cb(ev):
+				if ev.t != 'new': return
+				stream_started.append(ev.index)
+				raise pulsectl.PulseLoopStop
+			pulse.event_mask_set('sink_input')
+			pulse.event_callback_set(stream_ev_cb)
+
+			paplay = subprocess.Popen(
+				['paplay', '--raw', '/dev/urandom'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
+			try:
+				if not stream_started: pulse.event_listen()
+				stream_idx, = stream_started
+				si = pulse.sink_input_info(stream_idx)
+				sink = pulse.sink_info(si.sink)
+				source = pulse.source_info(sink.monitor_source)
+
+				# First poll can randomly fail if too short, probably due to latency or such
+				peak = pulse.get_peak_sample(sink.monitor_source, 3)
+				self.assertGreater(peak, 0)
+
+				peak = pulse.get_peak_sample(source.index, 0.3, si.index)
+				self.assertGreater(peak, 0)
+				peak = pulse.get_peak_sample(source.name, 0.3, si.index)
+				self.assertGreater(peak, 0)
+				peak = pulse.get_peak_sample(source_nx, 0.3)
+				self.assertEqual(peak, 0)
+
+				paplay.terminate()
+				paplay.wait()
+
+				peak = pulse.get_peak_sample(source.index, 0.3, si.index)
+				self.assertEqual(peak, 0)
+
+			finally:
+				if paplay.poll() is None: paplay.kill()
+				paplay.wait()
+
 
 class PulseCrashTests(unittest.TestCase):
 
