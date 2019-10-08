@@ -4,7 +4,7 @@ from __future__ import print_function
 
 # C Bindings
 
-import os, sys, functools as ft
+import os, sys, ctypes.util, functools as ft
 from ctypes import *
 
 
@@ -618,7 +618,7 @@ class LibPulse(object):
 
 
 	def __init__(self):
-		p = CDLL('libpulse.so.0')
+		p = CDLL(ctypes.util.find_library('libpulse') or 'libpulse.so.0')
 
 		self.funcs = dict()
 		for k, spec in self.func_defs.items():
