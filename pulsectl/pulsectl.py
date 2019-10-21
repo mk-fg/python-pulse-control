@@ -488,7 +488,7 @@ class Pulse(object):
 			ts = c.mono_time()
 			ts_deadline = timeout and (ts + timeout)
 			while True:
-				delay = max(0, int((ts_deadline - ts) * 1000000)) if ts_deadline else -1
+				delay = max(0, int((ts_deadline - ts) * 1000)) if ts_deadline else -1
 				c.pa.mainloop_prepare(loop, delay) # usec
 				c.pa.mainloop_poll(loop)
 				if self._loop_closed: break # interrupted by close() or such
@@ -843,6 +843,8 @@ class Pulse(object):
 				# This assumes that native byte order for floats is BE, same as pavucontrol
 				samples[0] = max(samples[0], c.cast(buff, c.POINTER(c.c_float))[0])
 			finally:
+				# stream_drop() flushes buffered data (incl. buff=NULL "hole" data)
+				# stream.h: "should not be called if the buffer is empty"
 				if bs.value: c.pa.stream_drop(s)
 
 		if stream_idx is not None: c.pa.stream_set_monitor_stream(s, stream_idx)
