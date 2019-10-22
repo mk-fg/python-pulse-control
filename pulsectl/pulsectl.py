@@ -499,7 +499,13 @@ class Pulse(object):
 
 
 	def _pulse_info_cb(self, info_cls, data_list, done_cb, ctx, info, eof, userdata):
-		if eof: done_cb()
+		# No idea where callbacks with "userdata != NULL" come from,
+		#  but "info" pointer in them is always invalid, so they are discarded here.
+		# Looks like some kind of mixup or corruption in libpulse memory?
+		# See also: https://github.com/mk-fg/python-pulse-control/issues/35
+		if userdata is not None: return
+		if eof < 0: done_cb(s=False)
+		elif eof: done_cb()
 		else: data_list.append(info_cls(info[0]))
 
 	def _pulse_get_list(cb_t, pulse_func, info_cls, singleton=False, index_arg=True):
