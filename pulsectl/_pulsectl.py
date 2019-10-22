@@ -562,7 +562,7 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), c_uint32, PA_CLIENT_INFO_CB_T, c_void_p] ),
 		pa_context_get_server_info=( 'pa_op',
 			[POINTER(PA_CONTEXT), PA_SERVER_INFO_CB_T, c_void_p] ),
-		pa_operation_unref=([POINTER(PA_OPERATION)], c_int),
+		pa_operation_unref=[POINTER(PA_OPERATION)],
 		pa_context_get_card_info_by_index=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_uint32, PA_CARD_INFO_CB_T, c_void_p] ),
 		pa_context_get_card_info_list=( 'pa_op',
