@@ -315,9 +315,13 @@ class DummyTests(unittest.TestCase):
 
 	def test_get_sink_src(self):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
-			src, sink = pulse.source_list()[0], pulse.sink_list()[0]
+			src, sink = pulse.source_list(), pulse.sink_list()
+			src_nx, sink_nx = max(s.index for s in src)+1, max(s.index for s in sink)+1
+			src, sink = src[0], sink[0]
 			self.assertEqual(sink.index, pulse.get_sink_by_name(sink.name).index)
 			self.assertEqual(src.index, pulse.get_source_by_name(src.name).index)
+			with self.assertRaises(pulsectl.PulseIndexError): pulse.source_info(src_nx)
+			with self.assertRaises(pulsectl.PulseIndexError): pulse.sink_info(sink_nx)
 
 	def test_module_funcs(self):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
@@ -370,6 +374,8 @@ class DummyTests(unittest.TestCase):
 			finally:
 				if paplay.poll() is None: paplay.kill()
 				paplay.wait()
+
+			with self.assertRaises(pulsectl.PulseIndexError): pulse.sink_input_info(stream.index)
 
 	def test_ext_stream_restore(self):
 		sr_name1 = 'sink-input-by-application-name:pulsectl-test-1'

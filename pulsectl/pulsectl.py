@@ -504,8 +504,10 @@ class Pulse(object):
 		# Looks like some kind of mixup or corruption in libpulse memory?
 		# See also: https://github.com/mk-fg/python-pulse-control/issues/35
 		if userdata is not None: return
-		if eof < 0: done_cb(s=False)
-		elif eof: done_cb()
+		# Empty result list (checked elsewhere) and conn issues are checked elsewhere.
+		# Errors here are non-descriptive (errno), so should not be useful anyway.
+		# if eof < 0: done_cb(s=False)
+		if eof: done_cb()
 		else: data_list.append(info_cls(info[0]))
 
 	def _pulse_get_list(cb_t, pulse_func, info_cls, singleton=False, index_arg=True):
