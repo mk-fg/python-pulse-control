@@ -876,13 +876,23 @@ class Pulse(object):
 
 		return min(1.0, samples[0])
 
-	_play_sample = _pulse_method_call(
-		c.pa.context_play_sample, func=lambda name, dev: [name, dev, c.PA_VOLUME_NORM], index_arg=False)
-
-	def play_sample(self, sample_name, sink):
-		if isinstance(sink, PulseSinkInfo):
-			sink = sink.name
-		self._play_sample(sample_name, sink)
+	def play_sample(self, name, sink=None, volume=1.0, proplist_str=None):
+		'''Play specified sound sample,
+				with an optional sink object/name/index, volume and proplist string parameters.
+			Sample must be stored on the server in advance, see e.g. "pacmd list-samples".
+			See also libcanberra for an easy XDG theme sample loading, storage and playback API.'''
+		if isinstance(sink, PulseSinkInfo): sink = sink.index
+		sink = str(sink) if sink is not None else None
+		proplist = c.pa.proplist_from_string(proplist_str) if proplist_str else None
+		volume = int(round(volume*c.PA_VOLUME_NORM))
+		with self._pulse_op_cb() as cb:
+			try:
+				if not proplist:
+					c.pa.context_play_sample(self._ctx, name, sink, volume, cb, None)
+				else:
+					c.pa.context_play_sample_with_proplist(
+						self._ctx, name, sink, volume, proplist, cb, None )
+			except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
 
 
 def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, retry_delay=0.3):

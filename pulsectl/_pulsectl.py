@@ -614,7 +614,10 @@ class LibPulse(object):
 		pa_stream_drop=([POINTER(PA_STREAM)], 'int_check_ge0'),
 		pa_stream_disconnect=([POINTER(PA_STREAM)], 'int_check_ge0'),
 		pa_context_play_sample=( 'pa_op',
-			[POINTER(PA_CONTEXT), c_str_p, c_str_p, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p]) )
+			[POINTER(PA_CONTEXT), c_str_p, c_str_p, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_play_sample_with_proplist=( 'pa_op',
+			[ POINTER(PA_CONTEXT), c_str_p, c_str_p, c_uint32,
+				POINTER(PA_PROPLIST), PA_CONTEXT_SUCCESS_CB_T, c_void_p ] ) )
 
 	class CallError(Exception): pass
 

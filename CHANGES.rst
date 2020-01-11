@@ -8,9 +8,13 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 19.9.5
+Last synced/updated: 20.1.2
 
 ---------------------------------------------------------------------------
+
+- 20.1.1: Add pulse.play_sample() - server-side stored sample playback [#36].
+
+  Loading is not implemented, would suggest something like libcanberra for that.
 
 - 19.9.1: Add pulse.get_peak_sample() func for getting volume peak within timespan [#33].
 
