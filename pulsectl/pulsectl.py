@@ -876,6 +876,14 @@ class Pulse(object):
 
 		return min(1.0, samples[0])
 
+	_play_sample = _pulse_method_call(
+		c.pa.context_play_sample, func=lambda name, dev: [name, dev, c.PA_VOLUME_NORM], index_arg=False)
+
+	def play_sample(self, sample_name, sink):
+		if isinstance(sink, PulseSinkInfo):
+			sink = sink.name
+		self._play_sample(sample_name, sink)
+
 
 def connect_to_cli(server=None, as_file=True, socket_timeout=1.0, attempts=5, retry_delay=0.3):
 	'''Returns connected CLI interface socket (as file object, unless as_file=False),
