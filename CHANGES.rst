@@ -12,6 +12,8 @@ Last synced/updated: 20.1.2
 
 ---------------------------------------------------------------------------
 
+- 20.2.2: Expose "corked" bool attr in PulseSinkInputInfo and PulseSourceOutputInfo [#37].
+
 - 20.1.1: Add pulse.play_sample() - server-side stored sample playback [#36].
 
   Loading is not implemented, would suggest something like libcanberra for that.
