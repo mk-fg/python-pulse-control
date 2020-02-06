@@ -145,6 +145,8 @@ class PulseObject(object):
 				self.state = PulseStateEnum._c_val(
 					struct.state, u'state.{}'.format(struct.state) )
 				self.state_values = sorted(PulseStateEnum._values.values())
+			if hasattr(struct, 'corked'):
+				self.corked = bool(struct.corked)
 			self._init_from_struct(struct)
 
 	def _get_wrapper(self, cls_base):
@@ -206,7 +208,7 @@ class PulseSinkInfo(PulseObject):
 		return self._as_str(self.volume, fields='index name description mute')
 
 class PulseSinkInputInfo(PulseObject):
-	c_struct_fields = ( 'index name mute client'
+	c_struct_fields = ( 'index name mute corked client'
 		' owner_module sink sample_spec'
 		' buffer_usec sink_usec resample_method driver' )
 
