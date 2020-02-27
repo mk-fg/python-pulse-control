@@ -323,6 +323,8 @@ class DummyTests(unittest.TestCase):
 			with self.assertRaises(pulsectl.PulseIndexError): pulse.source_info(src_nx)
 			with self.assertRaises(pulsectl.PulseIndexError): pulse.sink_info(sink_nx)
 
+	# def test_get_card(self): no cards to test these calls with :(
+
 	def test_module_funcs(self):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:
 			self.assertEqual(len(pulse.sink_list()), 2)

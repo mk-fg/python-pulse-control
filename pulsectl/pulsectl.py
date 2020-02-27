@@ -547,6 +547,9 @@ class Pulse(object):
 	get_source_by_name = _pulse_get_list(
 		c.PA_SOURCE_INFO_CB_T,
 		c.pa.context_get_source_info_by_name, PulseSourceInfo )
+	get_card_by_name = _pulse_get_list(
+		c.PA_CARD_INFO_CB_T,
+		c.pa.context_get_card_info_by_name, PulseCardInfo )
 
 	sink_input_list = _pulse_get_list(
 		c.PA_SINK_INPUT_INFO_CB_T,

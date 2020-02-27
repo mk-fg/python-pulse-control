@@ -8,9 +8,11 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 20.2.2
+Last synced/updated: 20.2.4
 
 ---------------------------------------------------------------------------
+
+- 20.2.4: Add pulse.get_card_by_name() wrapper [#38].
 
 - 20.2.2: Expose "corked" bool attr in PulseSinkInputInfo and PulseSourceOutputInfo [#37].
 

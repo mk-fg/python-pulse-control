@@ -565,6 +565,8 @@ class LibPulse(object):
 		pa_operation_unref=[POINTER(PA_OPERATION)],
 		pa_context_get_card_info_by_index=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_uint32, PA_CARD_INFO_CB_T, c_void_p] ),
+		pa_context_get_card_info_by_name=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_str_p, PA_CARD_INFO_CB_T, c_void_p] ),
 		pa_context_get_card_info_list=( 'pa_op',
 			[POINTER(PA_CONTEXT), PA_CARD_INFO_CB_T, c_void_p] ),
 		pa_context_set_card_profile_by_index=( 'pa_op',
