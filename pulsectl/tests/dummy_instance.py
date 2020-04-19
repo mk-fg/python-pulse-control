@@ -71,8 +71,8 @@ def _dummy_pulse_init(info):
 		env = dict(XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base)
 		log_level = 'error' if not env_debug else 'debug'
 		info.proc = subprocess.Popen(
-			[ 'pulseaudio', '--daemonize=no', '--fail',
-				'-nF', '/dev/stdin', '--exit-idle-time=-1', '--log-level={}'.format(log_level) ],
+			[shutil.which('pulseaudio'), '--daemonize=no', '--fail',
+				'-nF', '/dev/stdin', '--exit-idle-time=-1', '--log-level={}'.format(log_level)],
 			env=env, stdin=subprocess.PIPE )
 		bind4, bind6 = info.sock_tcp4.split(':'), info.sock_tcp6.rsplit(':', 1)
 		bind4, bind6 = (bind4[1], bind4[2]), (bind6[0].split(':', 1)[1].strip('[]'), bind6[1])
@@ -344,7 +344,7 @@ class DummyTests(unittest.TestCase):
 			pulse.event_callback_set(stream_ev_cb)
 
 			paplay = subprocess.Popen(
-				['paplay', '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
+				[shutil.which('paplay'), '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
 			try:
 				if not stream_started: pulse.event_listen()
 				self.assertTrue(bool(stream_started))
@@ -443,7 +443,7 @@ class DummyTests(unittest.TestCase):
 			pulse.event_callback_set(stream_ev_cb)
 
 			paplay = subprocess.Popen(
-				['paplay', '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
+				[shutil.which('paplay'), '--raw', '/dev/zero'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
 			try:
 				if not stream_started: pulse.event_listen()
 				stream_idx, = stream_started
@@ -488,7 +488,7 @@ class DummyTests(unittest.TestCase):
 			pulse.event_callback_set(stream_ev_cb)
 
 			paplay = subprocess.Popen(
-				['paplay', '--raw', '/dev/urandom'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
+				[shutil.which('paplay'), '--raw', '/dev/urandom'], env=dict(XDG_RUNTIME_DIR=self.tmp_dir) )
 			try:
 				if not stream_started: pulse.event_listen()
 				stream_idx, = stream_started
