@@ -151,6 +151,7 @@ class DummyTests(unittest.TestCase):
 	@classmethod
 	def tearDownClass(cls):
 		dummy_pulse_cleanup(cls.instance_info)
+		cls.proc = cls.tmp_dir = None
 
 
 	# Fuzzy float comparison is necessary for volume,
