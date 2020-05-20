@@ -780,6 +780,10 @@ class Pulse(object):
 		self.volume_set(obj, obj.volume)
 
 	def volume_get_all_chans(self, obj):
+		# Purpose of this func can be a bit confusing, being here next to set/change ones
+		'''Get "flat" volume float value for info-object as a mean of all channel values.
+			Note that this DOES NOT query any kind of updated values from libpulse,
+				and simply returns value(s) stored in passed object, i.e. same ones for same object.'''
 		assert_pulse_object(obj)
 		return obj.volume.value_flat
 
