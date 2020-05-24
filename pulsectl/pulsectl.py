@@ -512,7 +512,7 @@ class Pulse(object):
 		else: data_list.append(info_cls(info[0]))
 
 	def _pulse_get_list(cb_t, pulse_func, info_cls, singleton=False, index_arg=True):
-		def _wrapper(self, index=None):
+		def _wrapper_method(self, index=None):
 			data = list()
 			with self._pulse_op_cb(raw=True) as cb:
 				cb = cb_t(
@@ -525,21 +525,11 @@ class Pulse(object):
 			if index is not None or singleton:
 				if not data: raise PulseIndexError(index)
 				data, = data
-			return _wrapper.func(self, data) if _wrapper.func else data
-		_wrapper.func = None
-		def _add_wrap_doc(func):
-			func.__name__ = '...'
-			func.__doc__ = 'Signature: func({})'.format(
-				'' if pulse_func.__name__.endswith('_list') or singleton or not index_arg else 'index' )
-		def _decorator_or_method(func_or_self=None, index=None):
-			if func_or_self.__class__.__name__ == 'Pulse':
-				return _wrapper(func_or_self, index)
-			elif func_or_self: _wrapper.func = func_or_self
-			assert index is None, index
-			return _wrapper
-		_add_wrap_doc(_wrapper)
-		_add_wrap_doc(_decorator_or_method)
-		return _decorator_or_method
+			return data
+		_wrapper_method.__name__ = '...'
+		_wrapper_method.__doc__ = 'Signature: func({})'.format(
+			'' if pulse_func.__name__.endswith('_list') or singleton or not index_arg else 'index' )
+		return _wrapper_method
 
 	get_sink_by_name = _pulse_get_list(
 		c.PA_SINK_INFO_CB_T,
