@@ -562,6 +562,8 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), c_uint32, PA_CLIENT_INFO_CB_T, c_void_p] ),
 		pa_context_get_server_info=( 'pa_op',
 			[POINTER(PA_CONTEXT), PA_SERVER_INFO_CB_T, c_void_p] ),
+		pa_context_proplist_update=('pa_op',
+			[POINTER(PA_CONTEXT), c_int, POINTER(PA_PROPLIST), PA_CONTEXT_SUCCESS_CB_T, c_void_p]),
 		pa_operation_unref=[POINTER(PA_OPERATION)],
 		pa_context_get_card_info_by_index=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_uint32, PA_CARD_INFO_CB_T, c_void_p] ),
@@ -592,8 +594,9 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), POINTER(c_char_p), PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
 		pa_proplist_iterate=([POINTER(PA_PROPLIST), POINTER(c_void_p)], c_str_p),
+		pa_proplist_new=(POINTER(PA_PROPLIST)),
 		pa_proplist_gets=([POINTER(PA_PROPLIST), c_str_p], c_str_p),
-		pa_proplist_sets=([POINTER(PA_PROPLIST), c_char_p, c_char_p], c_int),
+		pa_proplist_sets=([POINTER(PA_PROPLIST), c_str_p, c_str_p], c_int),
 		pa_channel_map_init_mono=(
 			[POINTER(PA_CHANNEL_MAP)], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
 		pa_channel_map_init_stereo=(
