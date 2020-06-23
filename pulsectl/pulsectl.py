@@ -125,6 +125,7 @@ class PulseObject(object):
 					k = c.pa.proplist_iterate(struct.proplist, c.byref(state))
 					if not k: break
 					self.proplist[c.force_str(k)] = c.force_str(c.pa.proplist_gets(struct.proplist, k))
+					self.proplist_pointer = struct.proplist
 			if hasattr(struct, 'volume'):
 				self.volume = self._get_wrapper(PulseVolumeInfo)(struct.volume)
 			if hasattr(struct, 'n_ports'):
@@ -657,6 +658,11 @@ class Pulse(object):
 		return index
 
 	module_unload = _pulse_method_call(c.pa.context_unload_module, None)
+
+	def proplist_set(self, pulse_info, key, value):
+		assert_pulse_object(pulse_info)
+		key, value = map(c.force_bytes, [key, value])
+		c.pa.proplist_sets(pulse_info.proplist_pointer, key, value)
 
 
 	def stream_restore_test(self):
