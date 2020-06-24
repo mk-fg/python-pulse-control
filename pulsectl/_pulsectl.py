@@ -479,6 +479,8 @@ class LibPulse(object):
 	func_defs = dict(
 		pa_strerror=([c_int], c_str_p),
 		pa_runtime_path=([c_str_p], (c_char_p, 'not_null')),
+		pa_operation_unref=[POINTER(PA_OPERATION)],
+
 		pa_mainloop_new=(POINTER(PA_MAINLOOP)),
 		pa_mainloop_get_api=([POINTER(PA_MAINLOOP)], POINTER(PA_MAINLOOP_API)),
 		pa_mainloop_run=([POINTER(PA_MAINLOOP), POINTER(c_int)], c_int),
@@ -490,9 +492,11 @@ class LibPulse(object):
 		pa_mainloop_set_poll_func=[POINTER(PA_MAINLOOP), PA_POLL_FUNC_T, c_void_p],
 		pa_mainloop_quit=([POINTER(PA_MAINLOOP), c_int]),
 		pa_mainloop_free=[POINTER(PA_MAINLOOP)],
+
 		pa_signal_init=([POINTER(PA_MAINLOOP_API)], 'int_check_ge0'),
 		pa_signal_new=([c_int, PA_SIGNAL_CB_T, POINTER(PA_SIGNAL_EVENT)]),
 		pa_signal_done=None,
+
 		pa_context_errno=([POINTER(PA_CONTEXT)], c_int),
 		pa_context_new=([POINTER(PA_MAINLOOP_API), c_str_p], POINTER(PA_CONTEXT)),
 		pa_context_set_state_callback=([POINTER(PA_CONTEXT), PA_STATE_CB_T, c_void_p]),
@@ -562,7 +566,6 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), c_uint32, PA_CLIENT_INFO_CB_T, c_void_p] ),
 		pa_context_get_server_info=( 'pa_op',
 			[POINTER(PA_CONTEXT), PA_SERVER_INFO_CB_T, c_void_p] ),
-		pa_operation_unref=[POINTER(PA_OPERATION)],
 		pa_context_get_card_info_by_index=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_uint32, PA_CARD_INFO_CB_T, c_void_p] ),
 		pa_context_get_card_info_by_name=( 'pa_op',
@@ -581,6 +584,13 @@ class LibPulse(object):
 			[POINTER(PA_CONTEXT), c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
 		pa_context_subscribe=( 'pa_op',
 			[POINTER(PA_CONTEXT), c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
+		pa_context_play_sample=( 'pa_op',
+			[POINTER(PA_CONTEXT), c_str_p, c_str_p, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
+		pa_context_play_sample_with_proplist=( 'pa_op',
+			[ POINTER(PA_CONTEXT), c_str_p, c_str_p, c_uint32,
+				POINTER(PA_PROPLIST), PA_CONTEXT_SUCCESS_CB_T, c_void_p ] ),
+
 		pa_ext_stream_restore_test=( 'pa_op',
 			[POINTER(PA_CONTEXT), PA_EXT_STREAM_RESTORE_TEST_CB_T, c_void_p] ),
 		pa_ext_stream_restore_read=( 'pa_op',
@@ -590,9 +600,12 @@ class LibPulse(object):
 			c_uint, c_int, PA_CONTEXT_SUCCESS_CB_T, c_void_p ] ),
 		pa_ext_stream_restore_delete=( 'pa_op',
 			[POINTER(PA_CONTEXT), POINTER(c_char_p), PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
-		pa_context_set_subscribe_callback=[POINTER(PA_CONTEXT), PA_SUBSCRIBE_CB_T, c_void_p],
+
+		pa_proplist_from_string=([c_str_p], POINTER(PA_PROPLIST)),
 		pa_proplist_iterate=([POINTER(PA_PROPLIST), POINTER(c_void_p)], c_str_p),
 		pa_proplist_gets=([POINTER(PA_PROPLIST), c_str_p], c_str_p),
+		pa_proplist_free=[POINTER(PA_PROPLIST)],
+
 		pa_channel_map_init_mono=(
 			[POINTER(PA_CHANNEL_MAP)], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
 		pa_channel_map_init_stereo=(
@@ -600,8 +613,7 @@ class LibPulse(object):
 		pa_channel_map_snprint=([c_str_p, c_int, POINTER(PA_CHANNEL_MAP)], c_str_p),
 		pa_channel_map_parse=(
 			[POINTER(PA_CHANNEL_MAP), c_str_p], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
-		pa_proplist_from_string=([c_str_p], POINTER(PA_PROPLIST)),
-		pa_proplist_free=[POINTER(PA_PROPLIST)],
+
 		pa_stream_new_with_proplist=(
 			[ POINTER(PA_CONTEXT), c_str_p,
 				POINTER(PA_SAMPLE_SPEC), POINTER(PA_CHANNEL_MAP), POINTER(PA_PROPLIST) ],
@@ -614,12 +626,7 @@ class LibPulse(object):
 		pa_stream_peek=(
 			[POINTER(PA_STREAM), POINTER(c_void_p), POINTER(c_int)], 'int_check_ge0' ),
 		pa_stream_drop=([POINTER(PA_STREAM)], 'int_check_ge0'),
-		pa_stream_disconnect=([POINTER(PA_STREAM)], 'int_check_ge0'),
-		pa_context_play_sample=( 'pa_op',
-			[POINTER(PA_CONTEXT), c_str_p, c_str_p, c_uint32, PA_CONTEXT_SUCCESS_CB_T, c_void_p] ),
-		pa_context_play_sample_with_proplist=( 'pa_op',
-			[ POINTER(PA_CONTEXT), c_str_p, c_str_p, c_uint32,
-				POINTER(PA_PROPLIST), PA_CONTEXT_SUCCESS_CB_T, c_void_p ] ) )
+		pa_stream_disconnect=([POINTER(PA_STREAM)], 'int_check_ge0') )
 
 	class CallError(Exception): pass
 
