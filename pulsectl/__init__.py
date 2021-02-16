@@ -14,3 +14,5 @@ from .pulsectl import (
 
 	PulseError, PulseIndexError, PulseOperationFailed, PulseOperationInvalid,
 	PulseLoopStop, PulseDisconnected, PulseObject, Pulse, connect_to_cli )
+
+from .pulsectl_async import PulseAsync
