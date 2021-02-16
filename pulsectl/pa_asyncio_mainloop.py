@@ -2,6 +2,7 @@
 import asyncio
 import ctypes as c
 import enum
+import itertools
 import time
 from functools import partial
 from typing import Set, Optional, Dict
@@ -59,6 +60,7 @@ pa_defer_new_t = c.CFUNCTYPE(pa_defer_event_p, c.POINTER(pa_mainloop_api), pa_de
 pa_defer_enable_t = c.CFUNCTYPE(None, pa_defer_event_p, c.c_bool)
 pa_defer_free_t = c.CFUNCTYPE(None, pa_defer_event_p)
 pa_defer_set_destroy_t = c.CFUNCTYPE(None, pa_defer_event_p, pa_defer_event_destroy_cb_t)
+pa_quit_t = c.CFUNCTYPE(None, c.POINTER(pa_mainloop_api), c.c_int)
 
 pa_mainloop_api._fields_ = [
     ("userdata", c.c_void_p),  # We use it to store a pointer to the corresponding PythonMainLoop python object
@@ -74,15 +76,16 @@ pa_mainloop_api._fields_ = [
     ("defer_enable", pa_defer_enable_t),
     ("defer_free", pa_defer_free_t),
     ("defer_set_destroy", pa_defer_set_destroy_t),
-    ("quit", c.CFUNCTYPE(None, c.POINTER(pa_mainloop_api), c.c_int)),
+    ("quit", pa_quit_t),
 ]
 
 
 class PythonMainLoop:
     __slots__ = ('loop', 'io_events', 'time_events', 'defer_events', 'num_enabled_defer_events', 'wakeup_defer_events',
-                 'api_pointer', 'io_reader_events', 'io_writer_events')
+                 'api_pointer', 'io_reader_events', 'io_writer_events', 'defer_event_task', 'retval')
 
     def __init__(self, loop: asyncio.AbstractEventLoop):
+        # TODO implement 'on_quit' event callback
         self.loop = loop
         self.io_events: Set["PythonIOEvent"] = set()
         self.defer_events: Set["PythonDeferEvent"] = set()
@@ -92,7 +95,8 @@ class PythonMainLoop:
         self.num_enabled_defer_events: int = 0
         self.wakeup_defer_events = asyncio.Event()
         self.api_pointer = c.pointer(self._create_api())
-        loop.create_task(self._deferred_events_task())
+        self.defer_event_task = loop.create_task(self._deferred_events_task())
+        self.retval: Optional[int] = None
 
     def _create_api(self) -> pa_mainloop_api:
         result = pa_mainloop_api()
@@ -109,7 +113,7 @@ class PythonMainLoop:
         result.defer_enable = aio_defer_enable
         result.defer_free = aio_defer_free
         result.defer_set_destroy = aio_defer_set_destroy
-        # TODO quit method
+        result.quit = aio_quit
         return result
 
     async def _deferred_events_task(self) -> None:
@@ -161,6 +165,12 @@ class PythonMainLoop:
     def _io_read_callback(self, fd) -> None:
         for event in tuple(self.io_reader_events.get(fd, ())):
             event.read()
+
+    def stop(self, retval: int) -> None:
+        self.defer_event_task.cancel()
+        for event in itertools.chain(self.defer_events, self.io_writer_events, self.time_events):
+            event.free()
+        self.retval = retval
 
 
 class PythonIOEvent:
@@ -346,3 +356,9 @@ def aio_defer_set_destroy(e: pa_defer_event_p, cb: pa_defer_event_destroy_cb_t) 
 def aio_defer_free(e: pa_io_event_p) -> None:
     event: PythonDeferEvent = c.cast(e, c.POINTER(c.py_object)).contents.value
     event.free()
+
+
+@pa_quit_t
+def aio_quit(main_loop: c.POINTER(pa_mainloop_api), retval: int) -> None:
+    python_main_loop: PythonMainLoop = c.cast(main_loop.contents.userdata, c.POINTER(c.py_object)).contents.value
+    python_main_loop.stop(retval)
