@@ -423,15 +423,15 @@ class PulseAsync(object):
 		if self.event_callback is not None:
 			raise RuntimeError('Only a single subscribe_events generator can be used at a time.')
 		queue = asyncio.queues.Queue()
-		await self._event_mask_set(*masks)
-
+		self.event_callback = queue.put_nowait
 		try:
+			await self._event_mask_set(*masks)
 			while True:
 				yield await self._wait_disconnect_or(queue.get())
 		finally:
 			self.event_callback = None
 			if self.connected:
-				await self._event_mask_set(0)
+				await self._event_mask_set('null')
 
 	async def get_peak_sample(self, source, timeout, stream_idx=None):
 		'''Returns peak (max) value in 0-1.0 range for samples in source/stream within timespan.
