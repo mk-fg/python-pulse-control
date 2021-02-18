@@ -341,16 +341,16 @@ class PulseAsync(object):
 		return [name_struct]
 
 
-	def default_set(self, obj):
+	async def default_set(self, obj):
 		'Set passed sink or source to be used as default one by pulseaudio server.'
 		assert_pulse_object(obj)
 		method = {
 			PulseSinkInfo: self.sink_default_set,
 			PulseSourceInfo: self.source_default_set }.get(type(obj))
 		if not method: raise NotImplementedError(type(obj))
-		method(obj)
+		await method(obj)
 
-	def mute(self, obj, mute=True):
+	async def mute(self, obj, mute=True):
 		assert_pulse_object(obj)
 		method = {
 			PulseSinkInfo: self.sink_mute,
@@ -358,19 +358,19 @@ class PulseAsync(object):
 			PulseSourceInfo: self.source_mute,
 			PulseSourceOutputInfo: self.source_output_mute }.get(type(obj))
 		if not method: raise NotImplementedError(type(obj))
-		method(obj.index, mute)
+		await method(obj.index, mute)
 		obj.mute = mute
 
-	def port_set(self, obj, port):
+	async def port_set(self, obj, port):
 		assert_pulse_object(obj)
 		method = {
 			PulseSinkInfo: self.sink_port_set,
 			PulseSourceInfo: self.source_port_set }.get(type(obj))
 		if not method: raise NotImplementedError(type(obj))
-		method(obj.index, port)
+		await method(obj.index, port)
 		obj.port_active = port
 
-	def card_profile_set(self, card, profile):
+	async def card_profile_set(self, card, profile):
 		assert_pulse_object(card)
 		if is_str(profile):
 			profile_dict = dict((p.name, p) for p in card.profile_list)
@@ -378,7 +378,7 @@ class PulseAsync(object):
 				raise PulseIndexError( 'Card does not have'
 					' profile with specified name: {!r}'.format(profile) )
 			profile = profile_dict[profile]
-		self.card_profile_set_by_index(card.index, profile.name)
+		await self.card_profile_set_by_index(card.index, profile.name)
 		card.profile_active = profile
 
 	async def volume_set(self, obj, vol):
@@ -402,7 +402,7 @@ class PulseAsync(object):
 		obj.volume.values = [max(0, v + inc) for v in obj.volume.values]
 		await self.volume_set(obj, obj.volume)
 
-	def volume_get_all_chans(self, obj):
+	async def volume_get_all_chans(self, obj):
 		# Purpose of this func can be a bit confusing, being here next to set/change ones
 		'''Get "flat" volume float value for info-object as a mean of all channel values.
 			Note that this DOES NOT query any kind of updated values from libpulse,
