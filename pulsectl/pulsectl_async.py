@@ -128,7 +128,6 @@ class PulseAsync(object):
 		self._actions[act_id] = self._loop.loop.create_future()
 		try:
 			def cb (s=True,k=act_id):
-				print(f"Set future for action {act_id} ({s})")
 				if s: self._loop.loop.call_soon_threadsafe(self._actions[k].set_result, None)
 				else: self._loop.loop.call_soon_threadsafe(self._actions[k].set_exception, PulseOperationFailed(act_id))
 			if not raw: cb = c.PA_CONTEXT_SUCCESS_CB_T(lambda ctx,s,d,cb=cb: cb(s))
