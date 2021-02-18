@@ -8,11 +8,12 @@ from contextlib import contextmanager, asynccontextmanager
 from typing import Optional
 
 from .pa_asyncio_mainloop import PythonMainLoop
-from .pulsectl import PulseError, PulseEventTypeEnum, PulseEventFacilityEnum, PulseEventInfo, \
-	PulseEventMaskEnum, PulseLoopStop, PulseOperationFailed, PulseIndexError, PulseSinkInfo, PulseSourceInfo, \
-	PulseCardInfo, PulseSinkInputInfo, PulseSourceOutputInfo, PulseClientInfo, PulseServerInfo, PulseModuleInfo, \
-	is_list, PulseOperationInvalid, PulsePortInfo, PulseExtStreamRestoreInfo, PulseUpdateEnum, is_str, \
-	assert_pulse_object, PulseDisconnected, unicode
+from .pulsectl import (
+	PulseError, PulseEventTypeEnum, PulseEventFacilityEnum, PulseEventInfo,
+	PulseEventMaskEnum, PulseLoopStop, PulseOperationFailed, PulseIndexError, PulseSinkInfo, PulseSourceInfo,
+	PulseCardInfo, PulseSinkInputInfo, PulseSourceOutputInfo, PulseClientInfo, PulseServerInfo, PulseModuleInfo,
+	is_list, PulseOperationInvalid, PulsePortInfo, PulseExtStreamRestoreInfo, PulseUpdateEnum, is_str,
+	assert_pulse_object, PulseDisconnected, unicode)
 from . import _pulsectl as c
 
 
@@ -88,8 +89,7 @@ class PulseAsync(object):
 	def __enter__(self): return self
 	def __exit__(self, err_t, err, err_tb): self.close()
 
-
-	def _pulse_state_cb(self, ctx, userdata):
+	def _pulse_state_cb(self, ctx, _userdata):
 		state = c.pa.context_get_state(ctx)
 		if state >= c.PA_CONTEXT_READY:
 			if state == c.PA_CONTEXT_READY:
