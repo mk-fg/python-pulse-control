@@ -5,7 +5,7 @@ import itertools as it
 import functools as ft
 import traceback
 from contextlib import contextmanager, asynccontextmanager
-from typing import Optional, Coroutine
+from typing import Optional, AsyncIterator, Coroutine
 
 from .pa_asyncio_mainloop import PythonMainLoop
 from .pulsectl import (
@@ -413,13 +413,25 @@ class PulseAsync(object):
 		assert_pulse_object(obj)
 		return obj.volume.value_flat
 
-
-	def event_mask_set(self, *masks):
+	async def _event_mask_set(self, *masks):
 		mask = 0
 		for m in masks: mask |= PulseEventMaskEnum[m]._c_val
-		with self._pulse_op_cb() as cb:
+		async with self._pulse_op_cb() as cb:
 			c.pa.context_subscribe(self._ctx, mask, cb, None)
 
+	async def subscribe_events(self, *masks) -> AsyncIterator[PulseEventInfo]:
+		if self.event_callback is not None:
+			raise RuntimeError('Only a single subscribe_events generator can be used at a time.')
+		queue = asyncio.queues.Queue()
+		await self._event_mask_set(*masks)
+
+		try:
+			while True:
+				yield await self._wait_disconnect_or(queue.get())
+		finally:
+			self.event_callback = None
+			if self.connected:
+				await self._event_mask_set(0)
 
 	def get_peak_sample(self, source, timeout, stream_idx=None):
 		'''Returns peak (max) value in 0-1.0 range for samples in source/stream within timespan.
