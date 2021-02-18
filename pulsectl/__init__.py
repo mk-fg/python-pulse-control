@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import sys
+
 from . import _pulsectl
 
 from .pulsectl import (
@@ -15,4 +17,5 @@ from .pulsectl import (
 	PulseError, PulseIndexError, PulseOperationFailed, PulseOperationInvalid,
 	PulseLoopStop, PulseDisconnected, PulseObject, Pulse, connect_to_cli )
 
-from .pulsectl_async import PulseAsync
+if sys.version_info.major >= 3:
+	from .pulsectl_async import PulseAsync
