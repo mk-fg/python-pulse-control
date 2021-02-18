@@ -433,7 +433,7 @@ class PulseAsync(object):
 			if self.connected:
 				await self._event_mask_set(0)
 
-	def get_peak_sample(self, source, timeout, stream_idx=None):
+	async def get_peak_sample(self, source, timeout, stream_idx=None):
 		'''Returns peak (max) value in 0-1.0 range for samples in source/stream within timespan.
 			"source" can be either int index of pulseaudio source
 				(i.e. source.index), its name (source.name), or None to use default source.
@@ -477,10 +477,10 @@ class PulseAsync(object):
 			c.pa.stream_unref(s)
 			raise
 
-		try: self._pulse_poll(timeout)  # FIXME
-		finally:
-			try: c.pa.stream_disconnect(s)
-			except c.pa.CallError: pass # stream was removed
+		await asyncio.sleep(timeout)
+
+		try: c.pa.stream_disconnect(s)
+		except c.pa.CallError: pass # stream was removed
 
 		return min(1.0, samples[0])
 
