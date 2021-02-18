@@ -98,6 +98,8 @@ class PulseAsync(object):
 			elif state in [c.PA_CONTEXT_FAILED, c.PA_CONTEXT_TERMINATED]:
 				self.connected, self._loop_stop = False, True
 				self.connecting_finished.set()
+				for future in self._actions:
+					future.set_exception(PulseDisconnected())
 
 	def _pulse_subscribe_cb(self, ctx, ev, idx, userdata):
 		if not self.event_callback: return
@@ -127,7 +129,7 @@ class PulseAsync(object):
 				else: self._loop.loop.call_soon_threadsafe(self._actions[k].set_exception, PulseOperationFailed(act_id))
 			if not raw: cb = c.PA_CONTEXT_SUCCESS_CB_T(lambda ctx,s,d,cb=cb: cb(s))
 			yield cb
-			await self._actions[act_id]  # await disconnect simultaneously
+			await self._actions[act_id]
 		finally: self._actions.pop(act_id, None)
 
 
