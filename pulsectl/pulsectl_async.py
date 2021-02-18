@@ -5,7 +5,7 @@ import itertools as it
 import functools as ft
 import traceback
 from contextlib import contextmanager, asynccontextmanager
-from typing import Optional
+from typing import Optional, Coroutine
 
 from .pa_asyncio_mainloop import PythonMainLoop
 from .pulsectl import (
@@ -29,8 +29,11 @@ class PulseAsync(object):
 			"connect=False" can also be used here to
 				have control over options passed to connect() method.'''
 		self.name = client_name or 'pulsectl'
-		self.server, self.connected, self.connecting_finished = server, None, asyncio.Event(loop=loop)
-		self._ret = self._ctx = self._loop = None
+		self.server = server
+		self.connected = asyncio.Event(loop=loop)
+		self.disconnected = asyncio.Event(loop=loop)
+		self.disconnected.set()
+		self._ctx = self._loop = None
 		self._actions, self._action_ids = dict(),\
 			it.chain.from_iterable(map(range, it.repeat(2**30)))
 		self.init(loop)
@@ -40,8 +43,6 @@ class PulseAsync(object):
 		self._pa_subscribe_cb = c.PA_SUBSCRIBE_CB_T(self._pulse_subscribe_cb)
 
 		self._loop = PythonMainLoop(loop or asyncio.get_event_loop())
-		self._loop_running = self._loop_closed = False
-		self._ret = c.pa.return_value()
 
 		self._ctx_init()
 		self.event_types = sorted(PulseEventTypeEnum._values.values())
@@ -54,28 +55,28 @@ class PulseAsync(object):
 			self.disconnect()
 			c.pa.context_unref(self._ctx)
 		self._ctx = c.pa.context_new(self._loop.api_pointer, self.name)
+		self.connected.clear()
+		self.disconnected.clear()
 		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
 		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
 
-	async def connect(self, autospawn=False, wait=False):
+	async def connect(self, autospawn=False):
 		'''Connect to pulseaudio server.
-			"autospawn" option will start new pulse daemon, if necessary.
-			Specifying "wait" option will make function block until pulseaudio server appears.'''
-		if self._loop_closed:
-			raise PulseError('Eventloop object was already'
-				' destroyed and cannot be reused from this instance.')
-		if self.connected is not None: self._ctx_init()
-		flags, self.connected = 0, None
-		self.connecting_finished.clear()
-		if not autospawn: flags |= c.PA_CONTEXT_NOAUTOSPAWN
-		if wait: flags |= c.PA_CONTEXT_NOFAIL
-		try: c.pa.context_connect(self._ctx, self.server, flags, None)
-		except c.pa.CallError: self.connected = False
-		await self.connecting_finished.wait()
-		if self.connected is False: raise PulseError('Failed to connect to pulseaudio server')
+			"autospawn" option will start new pulse daemon, if necessary.'''
+		if self.connected.is_set():
+			self._ctx_init()
+		flags = 0
+		if not autospawn:
+			flags |= c.PA_CONTEXT_NOAUTOSPAWN
+		try:
+			c.pa.context_connect(self._ctx, self.server, flags, None)
+			await self._wait_disconnect_or(self.connected.wait())
+		except (c.pa.CallError, PulseDisconnected) as e:
+			raise PulseError('Failed to connect to pulseaudio server') from e
 
 	def disconnect(self):
-		if not self._ctx or not self.connected: return
+		if not self._ctx or not self.connected.is_set():
+			return
 		c.pa.context_disconnect(self._ctx)
 
 	def close(self):
@@ -89,15 +90,26 @@ class PulseAsync(object):
 	def __enter__(self): return self
 	def __exit__(self, err_t, err, err_tb): self.close()
 
+	async def _wait_disconnect_or(self, coroutine: Coroutine):
+		wait_disconnected = asyncio.create_task(self.disconnected.wait())
+		other_task = asyncio.create_task(coroutine)
+		done, pending = await asyncio.wait((wait_disconnected, other_task), return_when=asyncio.FIRST_COMPLETED)
+		for task in pending:
+			task.cancel()
+		if other_task in pending:
+			raise PulseDisconnected()
+		else:
+			return other_task.result()
+
 	def _pulse_state_cb(self, ctx, _userdata):
 		state = c.pa.context_get_state(ctx)
 		if state >= c.PA_CONTEXT_READY:
 			if state == c.PA_CONTEXT_READY:
-				self.connected = True
-				self.connecting_finished.set()
+				self.connected.set()
+				self.disconnected.clear()
 			elif state in [c.PA_CONTEXT_FAILED, c.PA_CONTEXT_TERMINATED]:
-				self.connected, self._loop_stop = False, True
-				self.connecting_finished.set()
+				self.connected.clear()
+				self.disconnected.set()
 				for future in self._actions:
 					future.set_exception(PulseDisconnected())
 
@@ -109,14 +121,6 @@ class PulseAsync(object):
 		ev_t = PulseEventTypeEnum._c_val(n, 'ev.type.{}'.format(n))
 		try: self.event_callback(PulseEventInfo(ev_t, ev_fac, idx))
 		except PulseLoopStop: self._loop_stop = True
-
-	def _pulse_poll_cb(self, func, func_err, ufds, nfds, timeout, userdata):
-		fd_list = list(ufds[n] for n in range(nfds))
-		try: nfds = func(fd_list, timeout / 1000.0)
-		except Exception as err:
-			func_err(*sys.exc_info())
-			return -1
-		return nfds
 
 	@asynccontextmanager
 	async def _pulse_op_cb(self, raw=False):
