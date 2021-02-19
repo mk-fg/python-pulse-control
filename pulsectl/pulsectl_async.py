@@ -97,6 +97,13 @@ class PulseAsync(object):
 	def __enter__(self): return self
 	def __exit__(self, err_t, err, err_tb): self.close()
 
+	async def __aenter__(self):
+		await self.connect()
+		return self
+
+	async def __aexit__(self, err_t, err, err_tb):
+		self.close()
+
 	async def _wait_disconnect_or(self, coroutine: Coroutine):
 		wait_disconnected = asyncio.create_task(self.disconnected.wait())
 		other_task = asyncio.create_task(coroutine)
