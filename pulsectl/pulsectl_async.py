@@ -124,7 +124,7 @@ class PulseAsync(object):
 			elif state in [c.PA_CONTEXT_FAILED, c.PA_CONTEXT_TERMINATED]:
 				self.connected.clear()
 				self.disconnected.set()
-				for future in self._actions:
+				for future in self._actions.values():
 					future.set_exception(PulseDisconnected())
 
 	def _pulse_subscribe_cb(self, ctx, ev, idx, userdata):
