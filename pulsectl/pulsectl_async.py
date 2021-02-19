@@ -64,14 +64,17 @@ class PulseAsync(object):
 		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
 		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
 
-	async def connect(self, autospawn=False):
+	async def connect(self, autospawn=False, wait=False):
 		'''Connect to pulseaudio server.
-			"autospawn" option will start new pulse daemon, if necessary.'''
+			"autospawn" option will start new pulse daemon, if necessary.
+			Specifying "wait" option will make function block until pulseaudio server appears.'''
 		if self.connected.is_set():
 			self._ctx_init()
 		flags = 0
 		if not autospawn:
 			flags |= c.PA_CONTEXT_NOAUTOSPAWN
+		if wait:
+			flags |= c.PA_CONTEXT_NOFAIL
 		try:
 			c.pa.context_connect(self._ctx, self.server, flags, None)
 			await self._wait_disconnect_or(self.connected.wait())
