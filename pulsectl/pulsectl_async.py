@@ -1,3 +1,7 @@
+#
+# Copyright (c) 2014 George Filipkin, 2021 Michael Thies
+#
+
 import asyncio
 import inspect
 import sys
