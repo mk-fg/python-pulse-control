@@ -17,5 +17,5 @@ from .pulsectl import (
 	PulseError, PulseIndexError, PulseOperationFailed, PulseOperationInvalid,
 	PulseLoopStop, PulseDisconnected, PulseObject, Pulse, connect_to_cli )
 
-if sys.version_info.major >= 3:
+if sys.version_info >= (3, 6):
 	from .pulsectl_async import PulseAsync
