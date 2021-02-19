@@ -491,7 +491,11 @@ class PulseAsync(object):
 			c.pa.stream_unref(s)
 			raise
 
-		await asyncio.sleep(timeout)
+		try:
+			await asyncio.wait_for(self.disconnected.wait(), timeout)
+			raise PulseDisconnected()
+		except asyncio.TimeoutError:
+			pass
 
 		try: c.pa.stream_disconnect(s)
 		except c.pa.CallError: pass # stream was removed
