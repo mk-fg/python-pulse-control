@@ -34,9 +34,9 @@ class PulseAsync(object):
 				have control over options passed to connect() method.'''
 		self.name = client_name or 'pulsectl'
 		self.server = server
-		self.connected = asyncio.Event(loop=loop)
-		self.disconnected = asyncio.Event(loop=loop)
-		self.disconnected.set()
+		self._connected = asyncio.Event(loop=loop)
+		self._disconnected = asyncio.Event(loop=loop)
+		self._disconnected.set()
 		self._ctx = self._loop = None
 		self._actions, self._action_ids = dict(),\
 			it.chain.from_iterable(map(range, it.repeat(2**30)))
@@ -59,8 +59,8 @@ class PulseAsync(object):
 			self.disconnect()
 			c.pa.context_unref(self._ctx)
 		self._ctx = c.pa.context_new(self._loop.api_pointer, self.name)
-		self.connected.clear()
-		self.disconnected.clear()
+		self._connected.clear()
+		self._disconnected.clear()
 		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
 		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
 
@@ -68,7 +68,7 @@ class PulseAsync(object):
 		'''Connect to pulseaudio server.
 			"autospawn" option will start new pulse daemon, if necessary.
 			Specifying "wait" option will make function block until pulseaudio server appears.'''
-		if self.connected.is_set() or self.disconnected.is_set():
+		if self._connected.is_set() or self._disconnected.is_set():
 			self._ctx_init()
 		flags = 0
 		if not autospawn:
@@ -77,13 +77,17 @@ class PulseAsync(object):
 			flags |= c.PA_CONTEXT_NOFAIL
 		try:
 			c.pa.context_connect(self._ctx, self.server, flags, None)
-			await self._wait_disconnect_or(self.connected.wait())
+			await self._wait_disconnect_or(self._connected.wait())
 		except (c.pa.CallError, PulseDisconnected) as e:
-			self.disconnected.set()
+			self._disconnected.set()
 			raise PulseError('Failed to connect to pulseaudio server') from e
 
+	@property
+	def connected(self):
+		return self._connected.is_set()
+
 	def disconnect(self):
-		if not self._ctx or not self.connected.is_set():
+		if not self._ctx or not self._connected.is_set():
 			return
 		c.pa.context_disconnect(self._ctx)
 
@@ -106,7 +110,7 @@ class PulseAsync(object):
 		self.close()
 
 	async def _wait_disconnect_or(self, coroutine: Coroutine):
-		wait_disconnected = asyncio.create_task(self.disconnected.wait())
+		wait_disconnected = asyncio.create_task(self._disconnected.wait())
 		other_task = asyncio.create_task(coroutine)
 		done, pending = await asyncio.wait((wait_disconnected, other_task), return_when=asyncio.FIRST_COMPLETED)
 		for task in pending:
@@ -120,11 +124,11 @@ class PulseAsync(object):
 		state = c.pa.context_get_state(ctx)
 		if state >= c.PA_CONTEXT_READY:
 			if state == c.PA_CONTEXT_READY:
-				self.connected.set()
-				self.disconnected.clear()
+				self._disconnected.clear()
+				self._connected.set()
 			elif state in [c.PA_CONTEXT_FAILED, c.PA_CONTEXT_TERMINATED]:
-				self.connected.clear()
-				self.disconnected.set()
+				self._connected.clear()
+				self._disconnected.set()
 				for future in self._actions.values():
 					future.set_exception(PulseDisconnected())
 
@@ -445,7 +449,7 @@ class PulseAsync(object):
 				yield await self._wait_disconnect_or(queue.get())
 		finally:
 			self.event_callback = None
-			if self.connected:
+			if self._connected.is_set():
 				await self._event_mask_set('null')
 
 	async def get_peak_sample(self, source, timeout, stream_idx=None):
@@ -493,7 +497,7 @@ class PulseAsync(object):
 			raise
 
 		try:
-			await asyncio.wait_for(self.disconnected.wait(), timeout)
+			await asyncio.wait_for(self._disconnected.wait(), timeout)
 			raise PulseDisconnected()
 		except asyncio.TimeoutError:
 			pass

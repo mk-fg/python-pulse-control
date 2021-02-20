@@ -443,7 +443,7 @@ class PulseCrashTestsAsync(unittest.TestCase):
 				await loop.run_in_executor(None, info.proc.wait)
 				with self.assertRaises(pulsectl.PulseOperationFailed):
 					for si in await pulse.sink_list(): raise AssertionError(si)
-				self.assertFalse(pulse.connected.is_set())
+				self.assertFalse(pulse.connected)
 		finally: await loop.run_in_executor(None, dummy_pulse_cleanup, info)
 
 	@async_test
@@ -456,25 +456,25 @@ class PulseCrashTestsAsync(unittest.TestCase):
 					for si in await pulse.sink_list(): raise AssertionError(si)
 
 				await pulse.connect(autospawn=False)
-				self.assertTrue(pulse.connected.is_set())
+				self.assertTrue(pulse.connected)
 				for si in await pulse.sink_list(): self.assertTrue(si)
 				await loop.run_in_executor(None, info.proc.terminate)
 				await loop.run_in_executor(None, info.proc.wait)
 				with self.assertRaises(Exception):
 					for si in await pulse.sink_list(): raise AssertionError(si)
-				self.assertFalse(pulse.connected.is_set())
+				self.assertFalse(pulse.connected)
 
 				await loop.run_in_executor(None, dummy_pulse_init, info)
 				await pulse.connect(autospawn=False, wait=True)
-				self.assertTrue(pulse.connected.is_set())
+				self.assertTrue(pulse.connected)
 				for si in await pulse.sink_list(): self.assertTrue(si)
 
 				pulse.disconnect()
 				with self.assertRaises(Exception):
 					for si in await pulse.sink_list(): raise AssertionError(si)
-				self.assertFalse(pulse.connected.is_set())
+				self.assertFalse(pulse.connected)
 				await pulse.connect(autospawn=False)
-				self.assertTrue(pulse.connected.is_set())
+				self.assertTrue(pulse.connected)
 				for si in await pulse.sink_list(): self.assertTrue(si)
 
 		finally: await loop.run_in_executor(None, dummy_pulse_cleanup, info)
