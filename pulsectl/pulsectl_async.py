@@ -4,11 +4,9 @@
 
 import asyncio
 import inspect
-import sys
 import itertools as it
 import functools as ft
-import traceback
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager
 from typing import Optional, AsyncIterator, Coroutine
 
 from .pa_asyncio_mainloop import PythonMainLoop
@@ -20,8 +18,6 @@ from .pulsectl import (
 	assert_pulse_object, PulseDisconnected, unicode)
 from . import _pulsectl as c
 
-
-# TODO alternative for event_callback_set (e.g. async generator)
 
 class PulseAsync(object):
 
