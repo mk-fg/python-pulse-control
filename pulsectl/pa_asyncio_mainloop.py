@@ -85,8 +85,8 @@ pa_mainloop_api._fields_ = [
 
 
 class PythonMainLoop:
-    __slots__ = ('loop', 'io_events', 'time_events', 'defer_events', 'num_enabled_defer_events', 'wakeup_defer_events',
-                 'api_pointer', 'io_reader_events', 'io_writer_events', 'defer_event_task', 'retval')
+    __slots__ = ('loop', 'io_events', 'time_events', 'defer_events',
+                 'api_pointer', 'io_reader_events', 'io_writer_events', 'retval')
 
     def __init__(self, loop: asyncio.AbstractEventLoop):
         # TODO implement 'on_quit' event callback
@@ -96,10 +96,7 @@ class PythonMainLoop:
         self.time_events: Set["PythonTimeEvent"] = set()
         self.io_reader_events: Dict[int, Set[PythonIOEvent]] = {}
         self.io_writer_events: Dict[int, Set[PythonIOEvent]] = {}
-        self.num_enabled_defer_events: int = 0
-        self.wakeup_defer_events = asyncio.Event()
         self.api_pointer = c.pointer(self._create_api())
-        self.defer_event_task = loop.create_task(self._deferred_events_task())
         self.retval: Optional[int] = None
 
     def _create_api(self) -> pa_mainloop_api:
@@ -119,20 +116,6 @@ class PythonMainLoop:
         result.defer_set_destroy = aio_defer_set_destroy
         result.quit = aio_quit
         return result
-
-    async def _deferred_events_task(self) -> None:
-        try:
-            while True:
-                for event in tuple(self.defer_events):
-                    if event.enabled:
-                        event.call()
-                if self.num_enabled_defer_events:
-                    await asyncio.sleep(0)
-                else:
-                    self.wakeup_defer_events.clear()
-                    await self.wakeup_defer_events.wait()
-        except asyncio.CancelledError:
-            pass
 
     def register_unregister_io_event(self, event: "PythonIOEvent", reader: bool, writer: bool) -> None:
         if writer:
@@ -171,7 +154,6 @@ class PythonMainLoop:
             event.read()
 
     def stop(self, retval: int) -> None:
-        self.defer_event_task.cancel()
         for event in itertools.chain(self.defer_events, self.io_writer_events, self.time_events):
             event.free()
         self.retval = retval
@@ -242,7 +224,7 @@ class PythonTimeEvent:
 
 
 class PythonDeferEvent:
-    __slots__ = ('python_main_loop', 'callback', 'userdata', 'on_destroy_callback', 'enabled', 'self_pointer')
+    __slots__ = ('python_main_loop', 'callback', 'userdata', 'on_destroy_callback', 'enabled', 'self_pointer', 'handle')
 
     def __init__(self, python_main_loop: PythonMainLoop, callback: pa_defer_event_cb_t, userdata: c.c_void_p) -> None:
         self.python_main_loop = python_main_loop
@@ -252,23 +234,26 @@ class PythonDeferEvent:
         self.enabled = False
         self.self_pointer: pa_defer_event_p = c.cast(c.pointer(c.py_object(self)), pa_defer_event_p)
         python_main_loop.defer_events.add(self)
+        self.handle = None
 
     def call(self) -> None:
+        self.handle = None
         self.callback(self.python_main_loop.api_pointer, self.self_pointer.value, self.userdata)
+        if self.enabled and self.handle is None:
+            self.handle = self.python_main_loop.loop.call_soon(self.call)
 
     def enable(self, enable: bool) -> None:
-        if enable and not self.enabled:
-            self.python_main_loop.num_enabled_defer_events += 1
-            self.python_main_loop.wakeup_defer_events.set()
-        elif not enable and self.enabled:
-            self.python_main_loop.num_enabled_defer_events -= 1
+        if enable and self.handle is None:
+            self.handle = self.python_main_loop.loop.call_soon(self.call)
+        elif not enable and self.handle is not None:
+            self.handle.cancel()
+            self.handle = None
         self.enabled = enable
 
     def free(self) -> None:
+        self.enable(False)
         if self.on_destroy_callback is not None:
             self.on_destroy_callback(self.python_main_loop.api_pointer, c.pointer(c.py_object(self)), self.userdata)
-        if self.enabled:
-            self.python_main_loop.num_enabled_defer_events -= 1
         self.python_main_loop.defer_events.discard(self)
 
     def set_destroy(self, callback: pa_io_event_destroy_cb_t) -> None:
