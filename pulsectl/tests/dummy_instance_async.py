@@ -225,9 +225,9 @@ class AsyncDummyTests(unittest.TestCase):
 
 			asyncio.create_task(listen_stream_events())
 
-			paplay = subprocess.Popen(
-				['paplay', '--raw', '/dev/zero'], env=dict(
-					PATH=os.environ['PATH'], XDG_RUNTIME_DIR=self.tmp_dir ) )
+			paplay = await asyncio.create_subprocess_exec(
+				'paplay', '--raw', '/dev/zero', env=dict(
+					PATH=os.environ['PATH'], XDG_RUNTIME_DIR=self.tmp_dir))
 			try:
 				await stream_started.wait()
 				self.assertTrue(bool(stream_idx))
@@ -257,8 +257,9 @@ class AsyncDummyTests(unittest.TestCase):
 				self.assertEqual((await pulse.sink_input_info(stream.index)).volume.values, stream.volume.values)
 
 			finally:
-				if paplay.poll() is None: paplay.kill()
-				paplay.wait()
+				if paplay.returncode is None:
+					paplay.kill()
+				await paplay.wait()
 
 			with self.assertRaises(pulsectl.PulseIndexError):
 				await pulse.sink_input_info(stream.index)
@@ -334,9 +335,9 @@ class AsyncDummyTests(unittest.TestCase):
 
 			asyncio.create_task(listen_stream_events())
 
-			paplay = subprocess.Popen(
-				['paplay', '--raw', '/dev/zero'], env=dict(
-					PATH=os.environ['PATH'], XDG_RUNTIME_DIR=self.tmp_dir ) )
+			paplay = await asyncio.create_subprocess_exec(
+				'paplay', '--raw', '/dev/zero', env=dict(
+					PATH=os.environ['PATH'], XDG_RUNTIME_DIR=self.tmp_dir))
 			try:
 				await stream_started.wait()
 				self.assertTrue(bool(stream_idx))
@@ -361,8 +362,9 @@ class AsyncDummyTests(unittest.TestCase):
 					await pulse.sink_input_move(stream.index, sink_nx)
 
 			finally:
-				if paplay.poll() is None: paplay.kill()
-				paplay.wait()
+				if paplay.returncode is None:
+					paplay.kill()
+				await paplay.wait()
 
 	@async_test
 	async def test_get_peak_sample(self):
@@ -388,8 +390,8 @@ class AsyncDummyTests(unittest.TestCase):
 
 			asyncio.create_task(listen_stream_events())
 
-			paplay = subprocess.Popen(
-				['paplay', '--raw', '/dev/zero'], env=dict(
+			paplay = await asyncio.create_subprocess_exec(
+				'paplay', '--raw', '/dev/urandom', env=dict(
 					PATH=os.environ['PATH'], XDG_RUNTIME_DIR=self.tmp_dir))
 			try:
 				await stream_started.wait()
@@ -411,14 +413,15 @@ class AsyncDummyTests(unittest.TestCase):
 				self.assertEqual(peak, 0)
 
 				paplay.terminate()
-				paplay.wait()
+				await paplay.wait()
 
 				peak = await pulse.get_peak_sample(source.index, 0.3, si.index)
 				self.assertEqual(peak, 0)
 
 			finally:
-				if paplay.poll() is None: paplay.kill()
-				paplay.wait()
+				if paplay.returncode is None:
+					paplay.kill()
+				await paplay.wait()
 
 
 @unittest.skipUnless(sys.version_info >= (3, 6), "Python 3.6 or higher required for asynchronous interface.")
