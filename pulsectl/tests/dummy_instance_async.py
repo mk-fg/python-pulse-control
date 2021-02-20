@@ -136,7 +136,8 @@ class AsyncDummyTests(unittest.TestCase):
 					self.assertEqual(ev.index, sink.index)
 					cb_called.append(True)
 					break
-			task = asyncio.create_task(listen_events())
+			loop = asyncio.get_event_loop()
+			loop.create_task(listen_events())
 			await asyncio.sleep(0)
 
 			await pulse.volume_set_all_chans(sink, 0.6)
@@ -223,7 +224,8 @@ class AsyncDummyTests(unittest.TestCase):
 						stream_started.set()
 						break
 
-			asyncio.create_task(listen_stream_events())
+			loop = asyncio.get_event_loop()
+			loop.create_task(listen_stream_events())
 
 			paplay = await asyncio.create_subprocess_exec(
 				'paplay', '--raw', '/dev/zero', env=dict(
@@ -333,7 +335,8 @@ class AsyncDummyTests(unittest.TestCase):
 						stream_started.set()
 						break
 
-			asyncio.create_task(listen_stream_events())
+			loop = asyncio.get_event_loop()
+			loop.create_task(listen_stream_events())
 
 			paplay = await asyncio.create_subprocess_exec(
 				'paplay', '--raw', '/dev/zero', env=dict(
@@ -388,7 +391,8 @@ class AsyncDummyTests(unittest.TestCase):
 						stream_started.set()
 						break
 
-			asyncio.create_task(listen_stream_events())
+			loop = asyncio.get_event_loop()
+			loop.create_task(listen_stream_events())
 
 			paplay = await asyncio.create_subprocess_exec(
 				'paplay', '--raw', '/dev/urandom', env=dict(

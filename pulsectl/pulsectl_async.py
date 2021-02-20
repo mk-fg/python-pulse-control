@@ -106,8 +106,9 @@ class PulseAsync(object):
 		self.close()
 
 	async def _wait_disconnect_or(self, coroutine: Coroutine):
-		wait_disconnected = asyncio.create_task(self._disconnected.wait())
-		other_task = asyncio.create_task(coroutine)
+		loop = asyncio.get_event_loop()
+		wait_disconnected = loop.create_task(self._disconnected.wait())
+		other_task = loop.create_task(coroutine)
 		done, pending = await asyncio.wait((wait_disconnected, other_task), return_when=asyncio.FIRST_COMPLETED)
 		for task in pending:
 			task.cancel()
@@ -437,7 +438,7 @@ class PulseAsync(object):
 	async def subscribe_events(self, *masks) -> AsyncIterator[PulseEventInfo]:
 		if self.event_callback is not None:
 			raise RuntimeError('Only a single subscribe_events generator can be used at a time.')
-		queue = asyncio.queues.Queue()
+		queue = asyncio.Queue()
 		self.event_callback = queue.put_nowait
 		try:
 			await self._event_mask_set(*masks)
