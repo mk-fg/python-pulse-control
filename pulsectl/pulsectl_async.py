@@ -68,7 +68,7 @@ class PulseAsync(object):
 		'''Connect to pulseaudio server.
 			"autospawn" option will start new pulse daemon, if necessary.
 			Specifying "wait" option will make function block until pulseaudio server appears.'''
-		if self.connected.is_set():
+		if self.connected.is_set() or self.disconnected.is_set():
 			self._ctx_init()
 		flags = 0
 		if not autospawn:
@@ -79,6 +79,7 @@ class PulseAsync(object):
 			c.pa.context_connect(self._ctx, self.server, flags, None)
 			await self._wait_disconnect_or(self.connected.wait())
 		except (c.pa.CallError, PulseDisconnected) as e:
+			self.disconnected.set()
 			raise PulseError('Failed to connect to pulseaudio server') from e
 
 	def disconnect(self):
