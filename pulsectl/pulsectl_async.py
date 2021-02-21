@@ -436,6 +436,13 @@ class PulseAsync(object):
 			c.pa.context_subscribe(self._ctx, mask, cb, None)
 
 	async def subscribe_events(self, *masks) -> AsyncIterator[PulseEventInfo]:
+		'''Subscribes to PulseAudio events with the given event masks and creates an asynchronous
+				iterator, yielding the events as they are received from the server.
+			This method is an alternative to `event_callback_set` and `event_mask_set`.
+
+			Raises a `PulseDisconnect` exception when the connection to the server is lost.
+			Raises StopIteration (returns silently from for loop) when the event subscription is
+				cancelled via `event_callback_set(None)`'''
 		if self.event_callback is not None:
 			raise RuntimeError('Only a single subscribe_events generator can be used at a time.')
 		queue = asyncio.Queue()
