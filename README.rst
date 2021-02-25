@@ -1,14 +1,19 @@
 python-pulse-control (pulsectl module)
 ======================================
 
-Python (3.x and 2.x) high-level interface and ctypes-based bindings for
-PulseAudio_ (libpulse), mostly focused on mixer-like controls and
-introspection-related operations (as opposed to e.g. submitting sound samples to
-play, player-like client).
+Python (3.x and 2.x) blocking high-level interface and ctypes-based bindings
+for PulseAudio_ (libpulse), to use in a simple synchronous code.
+
+Wrappers are mostly for mixer-like controls and introspection-related operations,
+as opposed to e.g. submitting sound samples to play and player-like client.
+
+For async version to use with asyncio_, see `pulsectl-asyncio`_ project instead.
 
 Originally forked from pulsemixer_ project, which had this code bundled.
 
 .. _PulseAudio: https://wiki.freedesktop.org/www/Software/PulseAudio/
+.. _asyncio: https://docs.python.org/3/library/asyncio.html
+.. _pulsectl-asyncio: https://pypi.org/project/pulsectl-asyncio/
 .. _pulsemixer: https://github.com/GeorgeFilipkin/pulsemixer/
 
 |
@@ -279,15 +284,13 @@ naturally, so if threads are used, client can be initialized with
 to create a mutex around step-2 (run event loop) from the list above, so
 multiple threads won't do it at the same time.
 
-For proper eventloop integration (think twisted or asyncio), ``_pulse_get_list``
-/ ``_pulse_method_call`` wrappers should be overidden to not run pulse loop, but
-rather return "future" object and register a set of fd's (as passed to
-``set_poll_func`` callback) with eventloop.
-Never needed that, so not implemented in the module, but should be rather easy
-to implement on top of it, as described.
+For proper eventloop integration (think twisted or asyncio), see
+`pulsectl-asyncio`_ module instead.
 
-See more info/discussion and code examples in `github #11
-<https://github.com/mk-fg/python-pulse-control/issues/11>`_.
+There are also some tricks mentioned in `github #11
+<https://github.com/mk-fg/python-pulse-control/issues/11>`_ to work around
+limitations of this module for async apps, but pulsectl-asyncio is a much
+nicer way to do it, so just use that instead.
 
 
 Tests
@@ -399,6 +402,8 @@ Links
 -----
 
 * pulsemixer_ - initial source for this project (embedded in the tool).
+
+* `pulsectl-asyncio`_ - similar libpulse wrapper to this one, but for async python code.
 
 * `libpulseaudio <https://github.com/thelinuxdude/python-pulseaudio/>`_ -
   different libpulse bindings module, more low-level, auto-generated from
