@@ -256,7 +256,7 @@ Event-handling code, threads
 ````````````````````````````
 
 libpulse clients always work as an event loop, though this module kinda hides
-it, presenting a more conventional blocking interface.
+it, presenting a more old-style blocking interface.
 
 So what happens on any call (e.g. ``pulse.mute(...)``) is:
 
@@ -268,8 +268,8 @@ So what happens on any call (e.g. ``pulse.mute(...)``) is:
 and second step here.
 
 Which means that any pulse calls from callback function can't be used when
-``event_listen()`` (or any other pulse call through this module, for that
-matter) waits for return value and runs libpulse loop already.
+``event_listen()`` (or any other pulse call through this module, for that matter)
+waits for return value and runs libpulse loop already.
 
 One can raise PulseLoopStop exception there to make ``event_listen()`` return,
 run whatever pulse calls after that, then re-start the ``event_listen()`` thing.
@@ -284,13 +284,13 @@ naturally, so if threads are used, client can be initialized with
 to create a mutex around step-2 (run event loop) from the list above, so
 multiple threads won't do it at the same time.
 
-For proper eventloop integration (think twisted or asyncio), see
-`pulsectl-asyncio`_ module instead.
+For proper python eventloop integration (think twisted or asyncio),
+use `pulsectl-asyncio`_ module instead.
 
 There are also some tricks mentioned in `github #11
-<https://github.com/mk-fg/python-pulse-control/issues/11>`_ to work around
-limitations of this module for async apps, but pulsectl-asyncio is a much
-nicer way to do it, so just use that instead.
+<https://github.com/mk-fg/python-pulse-control/issues/11>`_ to shoehorn this
+module into async apps, but even with non-asyncio eventloop, starting from
+pulsectl-asyncio would probably be much easier.
 
 
 Tests
