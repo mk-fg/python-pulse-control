@@ -8,9 +8,15 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 20.5.0
+Last synced/updated: 21.3.2
 
 ---------------------------------------------------------------------------
+
+- 21.3.2: Expose "base_volume" (alsa volume level) attribute for sinks/sources [#47].
+
+- 21.3.1: There is now https://pypi.org/project/pulsectl-asyncio/ module [#46].
+
+  It is maintained separately, and should provide similar bindings to use with async apps.
 
 - 20.2.4: Add pulse.get_card_by_name() wrapper [#38].
 
