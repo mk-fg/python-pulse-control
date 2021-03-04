@@ -82,7 +82,6 @@ def _dummy_pulse_init(info):
 				'module-augment-properties',
 
 				'module-default-device-restore',
-				'module-rescue-streams',
 				'module-always-sink',
 				'module-intended-roles',
 				'module-suspend-on-idle',
