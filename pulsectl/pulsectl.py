@@ -127,6 +127,8 @@ class PulseObject(object):
 					self.proplist[c.force_str(k)] = c.force_str(c.pa.proplist_gets(struct.proplist, k))
 			if hasattr(struct, 'volume'):
 				self.volume = self._get_wrapper(PulseVolumeInfo)(struct.volume)
+			if hasattr(struct, 'base_volume'):
+				self.base_volume = struct.base_volume / c.PA_VOLUME_NORM
 			if hasattr(struct, 'n_ports'):
 				cls_port = self._get_wrapper(PulsePortInfo)
 				self.port_list = list(
