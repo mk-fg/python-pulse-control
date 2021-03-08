@@ -8,9 +8,11 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in, followed by
 description of the change itself.
 
-Last synced/updated: 21.3.2
+Last synced/updated: 21.3.4
 
 ---------------------------------------------------------------------------
+
+- 21.3.4: Add timeout= option for connect() method [#48].
 
 - 21.3.2: Expose "base_volume" (alsa volume level) attribute for sinks/sources [#47].
 

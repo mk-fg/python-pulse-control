@@ -2,7 +2,7 @@
 from __future__ import unicode_literals, print_function
 
 import itertools as it, operator as op, functools as ft
-import unittest, contextlib, atexit, signal
+import unittest, contextlib, atexit, signal, threading, select, errno
 import os, sys, time, subprocess, tempfile, shutil, socket
 
 if sys.version_info.major > 2: unicode = str
@@ -19,6 +19,59 @@ class adict(dict):
 	def __init__(self, *args, **kws):
 		super(adict, self).__init__(*args, **kws)
 		self.__dict__ = self
+
+
+def start_sock_delay_thread(*args):
+	# Simple py2/py3 hack to simulate slow network and test conn timeouts
+	thread = threading.Thread(target=_sock_delay_thread, args=args)
+	thread.daemon = True
+	thread.start()
+	return thread
+
+def _sock_delay_thread(
+		ev_ready, ev_done, ev_disco, bind, connect, delay, block=0.1 ):
+	sl = s = c = None
+	try:
+		sl = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sl.bind(bind)
+		sl.listen(1)
+		ev_ready.set()
+		sl.settimeout(block)
+		while True:
+			ev_disco.clear()
+			while True:
+				try: s, addr = sl.accept()
+				except socket.timeout: pass
+				else: break
+				if ev_done.is_set(): return
+			ts0 = time.time()
+			c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			c.connect(connect)
+			s.setblocking(False)
+			c.setblocking(False)
+			time.sleep(min(delay, max(0, delay - (time.time() - ts0))))
+			def _send_data(src, dst, bs=8*2**10):
+				while True:
+					try:
+						buff = src.recv(bs)
+						if not buff: break
+						dst.sendall(buff) # just assuming it won't get full here
+					except socket.error as err:
+						if err.errno != errno.EAGAIN: return True
+						break
+			while True:
+				r,w,x = select.select([s,c], [], [s,c], block)
+				if x or ev_done.is_set(): return
+				if ev_disco.is_set(): break
+				if not (r or x): continue
+				if c in r and _send_data(c, s): break
+				if s in r and _send_data(s, c): break
+			s, c = s.close(), c.close()
+	finally:
+		if c: c.close()
+		if s: s.close()
+		if sl: sl.close()
+
 
 def dummy_pulse_init(info=None):
 	if not info: info = adict(proc=None, tmp_dir=None)
@@ -50,8 +103,9 @@ def _dummy_pulse_init(info):
 
 	# Pick some random available localhost ports
 	if not info.get('sock_unix'):
-		bind = ( ['127.0.0.1', 0, socket.AF_INET],
-			['::1', 0, socket.AF_INET6], ['127.0.0.1', 0, socket.AF_INET] )
+		bind = (
+			['127.0.0.1', 0, socket.AF_INET], ['::1', 0, socket.AF_INET6],
+			['127.0.0.1', 0, socket.AF_INET], ['127.0.0.1', 0, socket.AF_INET] )
 		for n, spec in enumerate(bind):
 			if env_reuse:
 				spec[1] = int(env_reuse.split(':')[n])
@@ -65,7 +119,20 @@ def _dummy_pulse_init(info):
 			sock_unix='unix:{}'.format(tmp_path('pulse', 'native')),
 			sock_tcp4='tcp4:{}:{}'.format(bind[0][0], bind[0][1]),
 			sock_tcp6='tcp6:[{}]:{}'.format(bind[1][0], bind[1][1]),
-			sock_tcp_cli=tuple(bind[2][:2]) )
+			sock_tcp_delay='tcp4:{}:{}'.format(bind[2][0], bind[2][1]),
+			sock_tcp_delay_src=tuple(bind[2][:2]),
+			sock_tcp_delay_dst=tuple(bind[0][:2]),
+			sock_tcp_cli=tuple(bind[3][:2]) )
+
+	if not info.get('sock_delay_thread'):
+		ev_ready, ev_exit, ev_disco = (threading.Event() for n in range(3))
+		delay = info.sock_delay = 0.5
+		info.sock_delay_thread_ready = ev_ready
+		info.sock_delay_thread_disco = ev_disco
+		info.sock_delay_thread_exit = ev_exit
+		info.sock_delay_thread = start_sock_delay_thread(
+			ev_ready, ev_exit, ev_disco,
+			info.sock_tcp_delay_src, info.sock_tcp_delay_dst, delay )
 
 	if info.proc and info.proc.poll() is not None: info.proc = None
 	if not env_reuse and not info.get('proc'):
@@ -127,6 +194,9 @@ def dummy_pulse_cleanup(info=None, proc=None, tmp_dir=None):
 			except OSError: pass
 		info.proc.wait()
 		info.proc = None
+	if info.get('sock_delay_thread'):
+		info.sock_delay_thread_exit.set()
+		info.sock_delay_thread = info.sock_delay_thread.join()
 	if info.tmp_dir:
 		shutil.rmtree(info.tmp_dir, ignore_errors=True)
 		info.tmp_dir = None
@@ -183,6 +253,34 @@ class DummyTests(unittest.TestCase):
 		self.assertEqual(vars(si), vars(si4))
 		with pulsectl.Pulse('t', server=self.sock_tcp6) as pulse: si6 = pulse.server_info()
 		self.assertEqual(vars(si), vars(si6))
+
+	def test_connect_timeout(self):
+		self.sock_delay_thread_ready.wait(timeout=2)
+		with pulsectl.Pulse('t', server=self.sock_unix) as pulse: si = pulse.server_info()
+
+		with pulsectl.Pulse('t', server=self.sock_tcp_delay) as pulse: sid = pulse.server_info()
+		self.assertEqual(vars(si), vars(sid))
+		self.sock_delay_thread_disco.set()
+
+		with pulsectl.Pulse('t', server=self.sock_tcp_delay, connect=False) as pulse:
+			pulse.connect()
+			sid = pulse.server_info()
+		self.assertEqual(vars(si), vars(sid))
+		self.sock_delay_thread_disco.set()
+
+		with pulsectl.Pulse('t', server=self.sock_tcp_delay, connect=False) as pulse:
+			pulse.connect(1.0)
+			sid = pulse.server_info()
+		self.assertEqual(vars(si), vars(sid))
+		self.sock_delay_thread_disco.set()
+
+		with pulsectl.Pulse('t', server=self.sock_tcp_delay, connect=False) as pulse:
+			with self.assertRaises(pulsectl.PulseError): pulse.connect(timeout=0.1)
+			self.sock_delay_thread_disco.set()
+			pulse.connect(timeout=1.0)
+			sid = pulse.server_info()
+		self.assertEqual(vars(si), vars(sid))
+		self.sock_delay_thread_disco.set()
 
 	def test_server_info(self):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:

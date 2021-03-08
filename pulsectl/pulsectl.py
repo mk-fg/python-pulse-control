@@ -387,10 +387,11 @@ class Pulse(object):
 		c.pa.context_set_state_callback(self._ctx, self._pa_state_cb, None)
 		c.pa.context_set_subscribe_callback(self._ctx, self._pa_subscribe_cb, None)
 
-	def connect(self, autospawn=False, wait=False):
+	def connect(self, autospawn=False, wait=False, timeout=None):
 		'''Connect to pulseaudio server.
 			"autospawn" option will start new pulse daemon, if necessary.
-			Specifying "wait" option will make function block until pulseaudio server appears.'''
+			Specifying "wait" option will make function block until pulseaudio server appears.
+			"timeout" (in seconds) will raise PulseError if connection not established within it.'''
 		if self._loop_closed:
 			raise PulseError('Eventloop object was already'
 				' destroyed and cannot be reused from this instance.')
@@ -400,7 +401,19 @@ class Pulse(object):
 		if wait: flags |= c.PA_CONTEXT_NOFAIL
 		try: c.pa.context_connect(self._ctx, self.server, flags, None)
 		except c.pa.CallError: self.connected = False
-		while self.connected is None: self._pulse_iterate()
+		if not timeout: # simplier process
+			while self.connected is None: self._pulse_iterate()
+		else:
+			self._loop_stop, delta, ts_deadline = True, 1, c.mono_time() + timeout
+			while self.connected is None:
+				delta = ts_deadline - c.mono_time()
+				self._pulse_poll(delta)
+				if delta <= 0: break
+			self._loop_stop = False
+			if not self.connected:
+				c.pa.context_disconnect(self._ctx)
+				while self.connected is not False: self._pulse_iterate()
+				raise PulseError('Timed-out connecting to pulseaudio server [{:,.1f}s]'.format(timeout))
 		if self.connected is False: raise PulseError('Failed to connect to pulseaudio server')
 
 	def disconnect(self):
@@ -492,7 +505,7 @@ class Pulse(object):
 			ts_deadline = timeout and (ts + timeout)
 			while True:
 				delay = max(0, int((ts_deadline - ts) * 1000)) if ts_deadline else -1
-				c.pa.mainloop_prepare(loop, delay) # usec
+				c.pa.mainloop_prepare(loop, delay) # delay in ms
 				c.pa.mainloop_poll(loop)
 				if self._loop_closed: break # interrupted by close() or such
 				c.pa.mainloop_dispatch(loop)
