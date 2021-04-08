@@ -176,7 +176,9 @@ def _dummy_pulse_init(info):
 				time.sleep(float(timeout) / checks)
 				continue
 			break
-		else: raise AssertionError(p)
+		else:
+			raise AssertionError( 'pulseaudio process'
+				' failed to start or create native socket at {}'.format(p) )
 
 def dummy_pulse_cleanup(info=None, proc=None, tmp_dir=None):
 	if not info: info = adict(proc=proc, tmp_dir=tmp_dir)
@@ -204,7 +206,7 @@ def dummy_pulse_cleanup(info=None, proc=None, tmp_dir=None):
 
 class DummyTests(unittest.TestCase):
 
-	proc = tmp_dir = None
+	instance_info = proc = tmp_dir = None
 
 	@classmethod
 	def setUpClass(cls):
@@ -219,8 +221,8 @@ class DummyTests(unittest.TestCase):
 
 	@classmethod
 	def tearDownClass(cls):
-		dummy_pulse_cleanup(cls.instance_info)
-		cls.proc = cls.tmp_dir = None
+		if cls.instance_info: dummy_pulse_cleanup(cls.instance_info)
+		cls.instance_info = cls.proc = cls.tmp_dir = None
 
 
 	# Fuzzy float comparison is necessary for volume,
