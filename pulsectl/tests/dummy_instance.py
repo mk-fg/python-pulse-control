@@ -138,36 +138,38 @@ def _dummy_pulse_init(info):
 	if not env_reuse and not info.get('proc'):
 		env = dict( PATH=os.environ['PATH'],
 			XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base )
-		conf, log_level = tmp_path('config.pa'), 'error' if not env_debug else 'debug'
+		log_level = 'error' if not env_debug else 'debug'
+		info.proc = subprocess.Popen(
+			['pulseaudio', '--daemonize=no', '--fail',
+				'-nF', '/dev/stdin', '--exit-idle-time=-1', '--log-level={}'.format(log_level)],
+			env=env, stdin=subprocess.PIPE )
 		bind4, bind6 = info.sock_tcp4.split(':'), info.sock_tcp6.rsplit(':', 1)
 		bind4, bind6 = (bind4[1], bind4[2]), (bind6[0].split(':', 1)[1].strip('[]'), bind6[1])
-		with open(conf, 'wb') as dst:
-			for line in [
-					'module-augment-properties',
+		for line in [
+				'module-augment-properties',
 
-					'module-default-device-restore',
-					'module-always-sink',
-					'module-intended-roles',
-					'module-suspend-on-idle',
-					'module-position-event-sounds',
-					'module-role-cork',
-					'module-filter-heuristics',
-					'module-filter-apply',
-					'module-switch-on-port-available',
-					'module-stream-restore',
+				'module-default-device-restore',
+				'module-always-sink',
+				'module-intended-roles',
+				'module-suspend-on-idle',
+				'module-position-event-sounds',
+				'module-role-cork',
+				'module-filter-heuristics',
+				'module-filter-apply',
+				'module-switch-on-port-available',
+				'module-stream-restore',
 
-					'module-native-protocol-tcp auth-anonymous=true'
-						' listen={} port={}'.format(*bind4),
-					'module-native-protocol-tcp auth-anonymous=true'
-						' listen={} port={}'.format(*bind6),
-					'module-native-protocol-unix',
+				'module-native-protocol-tcp auth-anonymous=true'
+					' listen={} port={}'.format(*bind4),
+				'module-native-protocol-tcp auth-anonymous=true'
+					' listen={} port={}'.format(*bind6),
+				'module-native-protocol-unix',
 
-					'module-null-sink',
-					'module-null-sink' ]:
-				if line.startswith('module-'): line = 'load-module {}'.format(line)
-				dst.write('{}\n'.format(line).encode('utf-8'))
-		info.proc = subprocess.Popen([ 'pulseaudio', '--daemonize=no', '--fail',
-			'-nF', conf, '--exit-idle-time=-1', '--log-level={}'.format(log_level) ], env=env)
+				'module-null-sink',
+				'module-null-sink' ]:
+			if line.startswith('module-'): line = 'load-module {}'.format(line)
+			info.proc.stdin.write('{}\n'.format(line).encode('utf-8'))
+		info.proc.stdin.close()
 		timeout, checks, p = 4, 10, info.sock_unix.split(':', 1)[-1]
 		for n in range(checks):
 			if not os.path.exists(p):
