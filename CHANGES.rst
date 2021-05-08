@@ -5,24 +5,22 @@
 Only (unlikely) intentional breaking changes and new/added non-trivial
 functionality is listed here, no bugfixes or commit messages.
 
-Each entry is a package version which change first appears in, followed by
-description of the change itself.
+Each entry is a package version which change first appears in,
+followed by description of the change itself.
 
-Last synced/updated: 21.3.4
+Last synced/updated: 21.5.0
 
 ---------------------------------------------------------------------------
 
-- 21.3.4: Add timeout= option for connect() method [#48].
+- 21.5.0: Fix PA_VOLUME_MAX and PA_VOLUME_UI_MAX values, both were incorrect [#53].
 
-- 21.3.2: Expose "base_volume" (alsa volume level) attribute for sinks/sources [#47].
+- 21.3.4: Add timeout= option for connect() method [#48].
 
 - 21.3.1: There is now https://pypi.org/project/pulsectl-asyncio/ module [#46].
 
   It is maintained separately, and should provide similar bindings to use with async apps.
 
 - 20.2.4: Add pulse.get_card_by_name() wrapper [#38].
-
-- 20.2.2: Expose "corked" bool attr in PulseSinkInputInfo and PulseSourceOutputInfo [#37].
 
 - 20.1.1: Add pulse.play_sample() - server-side stored sample playback [#36].
 

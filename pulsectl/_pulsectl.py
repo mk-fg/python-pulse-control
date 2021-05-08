@@ -45,12 +45,12 @@ else:
 PA_INVALID = 2**32-1
 
 PA_VOLUME_NORM = 0x10000
-PA_VOLUME_MAX = 2**32-1 // 2
+PA_VOLUME_MAX = (2**32-1) // 2 # was different before pulseaudio-1.0, see 179b291b there
 PA_VOLUME_INVALID = 2**32-1
 
-# pa_sw_volume_from_dB = lambda db:\
-# 	min(PA_VOLUME_MAX, int(round(((10.0 ** (db / 20.0)) ** 3) * PA_VOLUME_NORM)))
-PA_VOLUME_UI_MAX = 2927386 # pa_sw_volume_from_dB(+11.0)
+pa_sw_volume_from_dB = lambda db:\
+	min(PA_VOLUME_MAX, int(round(((10.0 ** (db / 20.0)) ** (1/3)) * PA_VOLUME_NORM)))
+PA_VOLUME_UI_MAX = 99957 # pa_sw_volume_from_dB(+11.0)
 
 PA_CHANNELS_MAX = 32
 PA_USEC_T = c_uint64
