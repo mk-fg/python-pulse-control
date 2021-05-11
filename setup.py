@@ -42,7 +42,5 @@ setup(
 		'Topic :: Multimedia',
 		'Topic :: Multimedia :: Sound/Audio' ],
 
-	install_requires = ['setuptools'],
-
 	packages = find_packages(),
 	include_package_data = True )
