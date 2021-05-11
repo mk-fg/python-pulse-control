@@ -89,7 +89,7 @@ def _dummy_pulse_init(info):
 	#  t1% env -i XDG_RUNTIME_DIR=/tmp/pulsectl-tests \
 	#       gdb --args /usr/bin/pulseaudio --daemonize=no --fail \
 	#       -nF /tmp/pulsectl-tests/conf.pa --exit-idle-time=-1 --log-level=debug
-	#  t2% PA_TMPDIR=/tmp/pulsectl-tests PA_REUSE=1234,1235 python -m -m unittest pulsectl.tests.all
+	#  t2% PA_TMPDIR=/tmp/pulsectl-tests PA_REUSE=1234,1235 python -m unittest discover
 	env_tmpdir, env_debug, env_reuse = map(
 		os.environ.get, ['PA_TMPDIR', 'PA_DEBUG', 'PA_REUSE'] )
 	if not os.environ.get('PATH'): os.environ['PATH'] = '/usr/local/bin:/usr/bin:/bin'
