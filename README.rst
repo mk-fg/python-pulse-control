@@ -302,8 +302,8 @@ versions all work fine together.
 
 Commands to run tests from either checkout directory or installed module::
 
-  % python2 -m unittest pulsectl.tests.all
-  % python3 -m unittest pulsectl.tests.all
+  % python2 -m unittest discover
+  % python3 -m unittest discover
 
 Note that if "pulsectl" module is available both in current directory
 (e.g. checkout dir) and user/system python module path, former should always

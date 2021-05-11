@@ -672,6 +672,3 @@ class PulseCrashTests(unittest.TestCase):
 				for si in pulse.sink_list(): self.assertTrue(si)
 
 		finally: dummy_pulse_cleanup(info)
-
-
-if __name__ == '__main__': unittest.main()
