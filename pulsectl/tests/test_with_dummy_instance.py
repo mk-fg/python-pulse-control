@@ -137,7 +137,8 @@ def _dummy_pulse_init(info):
 	if info.proc and info.proc.poll() is not None: info.proc = None
 	if not env_reuse and not info.get('proc'):
 		env = dict( PATH=os.environ['PATH'],
-			XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base )
+			XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base,
+			HOME=os.environ['HOME'] )
 		log_level = 'error' if not env_debug else 'debug'
 		info.proc = subprocess.Popen(
 			['pulseaudio', '--daemonize=no', '--fail',
