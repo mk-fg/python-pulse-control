@@ -2,7 +2,7 @@
 from __future__ import unicode_literals, print_function
 
 import itertools as it, operator as op, functools as ft
-import unittest, contextlib, hashlib, atexit, signal, threading, select, errno
+import unittest, contextlib, atexit, signal, threading, select, errno
 import os, sys, io, time, subprocess, tempfile, shutil, socket
 
 if sys.version_info.major > 2: unicode = str
@@ -17,14 +17,6 @@ class adict(dict):
 	def __init__(self, *args, **kws):
 		super(adict, self).__init__(*args, **kws)
 		self.__dict__ = self
-
-def hash_prng(seed, bs):
-	n, hash_func = 0, hashlib.sha512
-	with io.BytesIO() as buff:
-		while True:
-			seed = hash_func(seed).digest()
-			n += buff.write(seed)
-			if n > bs: return buff.getvalue()
 
 def start_sock_delay_thread(*args):
 	# Simple py2/py3 hack to simulate slow network and test conn timeouts
@@ -597,9 +589,10 @@ class DummyTests(unittest.TestCase):
 			pulse.event_mask_set('sink_input')
 			pulse.event_callback_set(stream_ev_cb)
 
+			chunk = b'\xff' * (100 * 2**10) # 100K chunk
 			test_wav = os.path.join(self.tmp_dir, 'test.wav')
 			with open(test_wav, 'wb') as dst:
-				dst.write(hash_prng(b'consistent-prng-key-for-audible-noise', 80 * 2**20))
+				for n in range(50): dst.write(chunk) # 5M file - should be long enough
 
 			paplay = subprocess.Popen( ['paplay', '--raw', test_wav],
 				env=dict(PATH=os.environ['PATH'], XDG_RUNTIME_DIR=self.tmp_dir) )
