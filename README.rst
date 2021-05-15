@@ -354,7 +354,10 @@ Be sure to use python3/python2, pip3/pip2, easy_install-... binaries below,
 based on which python version you want to install the module for, if you have
 several on the system (as is norm these days for py2-py3 transition).
 
-Using pip_ is the best way::
+`If a package is available for your distribution <https://repology.org/project/python:pulsectl/versions>`_,
+using your package manager is the recommended way to install it.
+
+Otherwise, using pip_ is the best way::
 
   % pip install pulsectl
 
