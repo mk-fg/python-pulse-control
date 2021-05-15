@@ -2,7 +2,7 @@
 from __future__ import unicode_literals, print_function
 
 import itertools as it, operator as op, functools as ft
-import unittest, contextlib, atexit, signal, threading, select, errno
+import unittest, contextlib, hashlib, atexit, signal, threading, select, errno
 import os, sys, io, time, subprocess, tempfile, shutil, socket
 
 if sys.version_info.major > 2: unicode = str
@@ -24,6 +24,14 @@ def start_sock_delay_thread(*args):
 	thread.daemon = True
 	thread.start()
 	return thread
+
+def hash_prng(seed, bs):
+	n, hash_func = 0, hashlib.sha512
+	with io.BytesIO() as buff:
+		while True:
+			seed = hash_func(seed).digest()
+			n += buff.write(seed)
+			if n > bs: return buff.getvalue()
 
 def _sock_delay_thread(
 		ev_ready, ev_done, ev_disco, bind, connect, delay, block=0.1 ):
@@ -589,10 +597,9 @@ class DummyTests(unittest.TestCase):
 			pulse.event_mask_set('sink_input')
 			pulse.event_callback_set(stream_ev_cb)
 
-			chunk = b'\xff' * (100 * 2**10) # 100K chunk
 			test_wav = os.path.join(self.tmp_dir, 'test.wav')
 			with open(test_wav, 'wb') as dst:
-				for n in range(50): dst.write(chunk) # 5M file - should be long enough
+				dst.write(hash_prng(b'consistent-prng-key-for-audible-noise', 5 * 2**20)) # 5M file
 
 			paplay = subprocess.Popen( ['paplay', '--raw', test_wav],
 				env=dict(PATH=os.environ['PATH'], XDG_RUNTIME_DIR=self.tmp_dir) )
