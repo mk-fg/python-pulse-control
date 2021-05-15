@@ -350,11 +350,7 @@ Installation
 
 It's a regular package for Python (3.x or 2.x).
 
-Be sure to use python3/python2, pip3/pip2, easy_install-... binaries below,
-based on which python version you want to install the module for, if you have
-several on the system (as is norm these days for py2-py3 transition).
-
-`If a package is available for your distribution <https://repology.org/project/python:pulsectl/versions>`_,
+`If a package is available for your distribution`_,
 using your package manager is the recommended way to install it.
 
 Otherwise, using pip_ is the best way::
@@ -363,7 +359,11 @@ Otherwise, using pip_ is the best way::
 
 (add --user option to install into $HOME for current user only)
 
-Or, if you don't have "pip" command::
+Be sure to use python3/python2, pip3/pip2, easy_install-... commands
+based on which python version you want to install the module for,
+if you are still using python2 (and likely have python3 on the system as well).
+
+If you don't have "pip" command::
 
   % python -m ensurepip
   % python -m pip install --upgrade pip
@@ -388,14 +388,15 @@ Current-git version can be installed like this::
 
   % pip install 'git+https://github.com/mk-fg/python-pulse-control#egg=pulsectl'
 
-Note that to install stuff to system-wide PATH and site-packages (without
---user), elevated privileges (i.e. root and su/sudo) are often required.
+Note that to install stuff to system-wide PATH and site-packages
+(without --user), elevated privileges (i.e. root and su/sudo) are often required.
 
-Use "...install --user", `~/.pydistutils.cfg`_ or virtualenv_ to do unprivileged
-installs into custom paths.
+Use "...install --user", `~/.pydistutils.cfg`_ or virtualenv_
+to do unprivileged installs into custom paths.
 
 More info on python packaging can be found at `packaging.python.org`_.
 
+.. _If a package is available for your distribution: https://repology.org/project/python:pulsectl/versions
 .. _pip: http://pip-installer.org/
 .. _~/.pydistutils.cfg: http://docs.python.org/install/index.html#distutils-configuration-files
 .. _virtualenv: http://pypi.python.org/pypi/virtualenv
