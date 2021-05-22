@@ -10,13 +10,31 @@ from . import _pulsectl as c
 
 
 if sys.version_info.major >= 3:
-	long, unicode, print_err = int, str, ft.partial(print, file=sys.stderr, flush=True)
+	long, unicode = int, str
+	print_err = ft.partial(print, file=sys.stderr, flush=True)
+	def wrapper_with_sig_info(func, wrapper, index_arg=False):
+		sig = inspect.signature(func or (lambda: None))
+		if index_arg:
+			sig = sig.replace(parameters=[inspect.Parameter( 'index',
+				inspect.Parameter.POSITIONAL_OR_KEYWORD )] + list(sig.parameters.values()))
+		wrapper.__name__, wrapper.__signature__, wrapper.__doc__ = '', sig, func.__doc__
+		return wrapper
+
 else:
 	range, map = xrange, it.imap
 	def print_err(*args, **kws):
 		kws.setdefault('file', sys.stderr)
 		print(*args, **kws)
 		kws['file'].flush()
+	def wrapper_with_sig_info(func, wrapper, index_arg=False):
+		func_args = list(inspect.getargspec(func or (lambda: None)))
+		func_args[0] = list(func_args[0])
+		if index_arg: func_args[0] = ['index'] + func_args[0]
+		wrapper.__name__ = '...'
+		wrapper.__doc__ = 'Signature: func' + inspect.formatargspec(*func_args)
+		if func.__doc__: wrapper.__doc__ += '\n\n' + func.__doc__
+		return wrapper
+
 
 is_str = lambda v,ext=None,native=False: (
 	isinstance(v, ( (unicode, bytes)
@@ -541,10 +559,8 @@ class Pulse(object):
 				if not data: raise PulseIndexError(index)
 				data, = data
 			return data
-		_wrapper_method.__name__ = '...'
-		_wrapper_method.__doc__ = 'Signature: func({})'.format(
-			'' if pulse_func.__name__.endswith('_list') or singleton or not index_arg else 'index' )
-		return _wrapper_method
+		return wrapper_with_sig_info( None, _wrapper_method,
+			not (pulse_func.__name__.endswith('_list') or singleton or not index_arg) )
 
 	get_sink_by_name = _pulse_get_list(
 		c.PA_SINK_INFO_CB_T,
@@ -608,13 +624,7 @@ class Pulse(object):
 				try: pulse_op(self._ctx, *(list(pulse_args) + [cb, None]))
 				except c.ArgumentError as err: raise TypeError(err.args)
 				except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
-		func_args = list(inspect.getargspec(func or (lambda: None)))
-		func_args[0] = list(func_args[0])
-		if index_arg: func_args[0] = ['index'] + func_args[0]
-		_wrapper.__name__ = '...'
-		_wrapper.__doc__ = 'Signature: func' + inspect.formatargspec(*func_args)
-		if func.__doc__: _wrapper.__doc__ += '\n\n' + func.__doc__
-		return _wrapper
+		return wrapper_with_sig_info(func, _wrapper, index_arg)
 
 	card_profile_set_by_index = _pulse_method_call(
 		c.pa.context_set_card_profile_by_index, lambda profile_name: profile_name )
