@@ -309,7 +309,11 @@ Note that if "pulsectl" module is available both in current directory
 (e.g. checkout dir) and user/system python module path, former should always
 take priority for commands above.
 
-Add e.g. ``-k test_stream_move`` for commands above to match and run specific test(s).
+Add e.g. ``-k test_stream_move`` for commands above to match and run specific
+test(s), and when isolating specific failure, it might also be useful to run
+with PA_DEBUG=1 env-var to get full verbose pulseaudio log, for example::
+
+  % PA_DEBUG=1 python -m unittest discover -k test_module_funcs
 
 Test suite runs ad-hoc isolated pulseaudio instance with null-sinks (not
 touching hardware), custom (non-default) startup script and environment,
