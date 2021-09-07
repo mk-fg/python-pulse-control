@@ -440,6 +440,9 @@ class DummyTests(unittest.TestCase):
 			self.assertEqual(len(pulse.sink_list()), 3)
 			pulse.module_unload(idx)
 			self.assertEqual(len(pulse.sink_list()), 2)
+			with self.assertRaises(pulsectl.PulseError):
+				pulse.module_load('module-that-does-not-exist')
+			self.assertEqual(len(pulse.sink_list()), 2)
 
 	def test_stream(self):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse:

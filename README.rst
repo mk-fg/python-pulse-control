@@ -169,7 +169,7 @@ PulseVolumeInfo can be constructed from a numeric volume value plus number of
 channels, or a python list of per-channel numbers.
 
 All per-channel volume values in PulseVolumeInfo (and flat values in the wrapper
-funcs above), are float objects in 0-65536 range, with following meaning:
+funcs above), are float objects in 0-65536 range, with following meanings:
 
 * 0.0 volume is "no sound" (corresponds to PA_VOLUME_MUTED).
 

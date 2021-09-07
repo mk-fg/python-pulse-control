@@ -679,6 +679,8 @@ class Pulse(object):
 			try: c.pa.context_load_module(self._ctx, name, args, cb, None)
 			except c.pa.CallError as err: raise PulseOperationInvalid(err.args[-1])
 		index, = data
+		if index == c.PA_INVALID:
+			raise PulseError('Failed to load module: {} {}'.format(name, args))
 		return index
 
 	module_unload = _pulse_method_call(c.pa.context_unload_module, None)
