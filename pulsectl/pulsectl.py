@@ -157,6 +157,7 @@ class PulseObject(object):
 					None if not struct.active_port else cls_port(struct.active_port.contents) )
 			if hasattr(struct, 'channel_map'):
 				self.channel_count, self.channel_list = struct.channel_map.channels, list()
+				self.channel_map = struct.channel_map.map[:self.channel_count]
 				if self.channel_count > 0:
 					s = c.create_string_buffer(b'\0' * 512)
 					c.pa.channel_map_snprint(s, len(s), struct.channel_map)
