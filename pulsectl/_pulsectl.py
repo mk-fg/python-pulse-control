@@ -613,6 +613,7 @@ class LibPulse(object):
 		pa_channel_map_snprint=([c_str_p, c_int, POINTER(PA_CHANNEL_MAP)], c_str_p),
 		pa_channel_map_parse=(
 			[POINTER(PA_CHANNEL_MAP), c_str_p], (POINTER(PA_CHANNEL_MAP), 'not_null') ),
+		pa_channel_position_to_string=([c_int], c_str_p),
 
 		pa_stream_new_with_proplist=(
 			[ POINTER(PA_CONTEXT), c_str_p,
