@@ -80,14 +80,14 @@ class Enum(object):
 		self._name, self._values, self._c_vals = name, dict(), dict()
 		for c_val, k in vals:
 			v = EnumValue(name, k, c_val)
-			setattr(self, k, v)
+			setattr(self, k.replace('-', '_'), v)
 			self._c_vals[c_val] = self._values[k] = v
 
 	def __getitem__(self, k, *default):
 		if isinstance(k, EnumValue):
 			t, k, v = k._t, k._value, k
 			if t != self._name: raise KeyError(v)
-		try: return getattr(self, k, *default)
+		try: return getattr(self, k.replace('-', '_'), *default)
 		except AttributeError: raise KeyError(k)
 
 	def _get(self, k, default=None): return self.__getitem__(k, default)

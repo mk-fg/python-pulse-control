@@ -508,10 +508,9 @@ class DummyTests(unittest.TestCase):
 			sr_dict = dict((sr.name, sr) for sr in sr_list)
 			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.5)
 			self.assertEqual(sr_dict[sr_name1].mute, 1)
-			self.assertEqual(sr_dict[sr_name1].channel_list, ['mono'])
 			self.assertEqual(sr_dict[sr_name1].channel_list, [pulse.channel_pos.mono])
 			self.assertIn(sr_name2, sr_dict)
-			self.assertEqual(sr_dict[sr_name2].channel_list, ['mono'])
+			self.assertEqual(sr_dict[sr_name1].channel_list, [pulse.channel_pos.mono])
 
 			pulse.stream_restore_delete(sr_name1)
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
@@ -528,9 +527,8 @@ class DummyTests(unittest.TestCase):
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
 			self.assertEqual(sr_dict[sr_name1].volume.value_flat, 0.7)
 			self.assertEqual(sr_dict[sr_name1].mute, 0)
-			self.assertEqual(sr_dict[sr_name1].channel_list, ['front-left', 'front-right'])
 			self.assertEqual( sr_dict[sr_name1].channel_list,
-				[pulse.channel_pos['front-left'], pulse.channel_pos['front-right']] )
+				[pulse.channel_pos.front_left, pulse.channel_pos.front_right] )
 
 			pulse.stream_restore_write(sr_name1, volume=0.4, mode='replace')
 			sr_dict = dict((sr.name, sr) for sr in pulse.stream_restore_list())
