@@ -8,9 +8,12 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in,
 followed by description of the change itself.
 
-Last synced/updated: 21.5.18
+Last synced/updated: 21.10.4
 
 ---------------------------------------------------------------------------
+
+- 21.10.4: Add channel_list_enum to compare channel_list values with something
+  in a typo-free way, expose channel_list_raw with C enum values [#66].
 
 - 21.5.0: Fix PA_VOLUME_MAX and PA_VOLUME_UI_MAX values, both were incorrect [#53].
 

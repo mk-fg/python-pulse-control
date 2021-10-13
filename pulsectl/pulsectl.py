@@ -157,6 +157,7 @@ class PulseObject(object):
 					None if not struct.active_port else cls_port(struct.active_port.contents) )
 			if hasattr(struct, 'channel_map'):
 				self.channel_count, self.channel_list = struct.channel_map.channels, list()
+				self.channel_list_raw = struct.channel_map.map[:self.channel_count]
 				if self.channel_count > 0:
 					s = c.create_string_buffer(b'\0' * 512)
 					c.pa.channel_map_snprint(s, len(s), struct.channel_map)
@@ -401,7 +402,7 @@ class Pulse(object):
 			name = c.pa.channel_position_to_string(n)
 			if name is None: break
 			chan_names[n] = name
-		self.channel_pos = Enum('channel_pos', chan_names)
+		self.channel_list_enum = Enum('channel_pos', chan_names)
 
 	def _ctx_init(self):
 		if self._ctx:
