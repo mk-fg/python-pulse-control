@@ -144,10 +144,12 @@ def _dummy_pulse_init(info):
 		env = dict(
 			PATH=os.environ['PATH'], HOME=os.environ['HOME'],
 			XDG_RUNTIME_DIR=tmp_base, PULSE_STATE_PATH=tmp_base )
+		proc_stderr = sys.stderr if env_debug else open('/dev/null', 'wb')
 		info.proc = subprocess.Popen(
 			[ 'pulseaudio', '--daemonize=no', '--fail',
 				'-nF', '/dev/stdin', '--exit-idle-time=-1', '--log-level=debug' ], env=env,
-			stdin=subprocess.PIPE, stderr=sys.stderr if env_debug else open('/dev/null', 'wb') )
+			stdin=subprocess.PIPE, stderr=proc_stderr )
+		if proc_stderr is not sys.stderr: proc_stderr.close()
 		bind4, bind6 = info.sock_tcp4.split(':'), info.sock_tcp6.rsplit(':', 1)
 		bind4, bind6 = (bind4[1], bind4[2]), (bind6[0].split(':', 1)[1].strip('[]'), bind6[1])
 		for line in [
