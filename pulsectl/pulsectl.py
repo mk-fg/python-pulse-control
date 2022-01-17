@@ -530,8 +530,8 @@ class Pulse(object):
 			ts = c.mono_time()
 			ts_deadline = timeout and (ts + timeout)
 			while True:
-				delay = max(0, int((ts_deadline - ts) * 1000)) if ts_deadline else -1
-				c.pa.mainloop_prepare(loop, delay) # delay in ms
+				delay = max(0, int((ts_deadline - ts) * 1000000)) if ts_deadline else -1
+				c.pa.mainloop_prepare(loop, delay) # delay in us
 				c.pa.mainloop_poll(loop)
 				if self._loop_closed: break # interrupted by close() or such
 				c.pa.mainloop_dispatch(loop)
@@ -822,6 +822,7 @@ class Pulse(object):
 	def event_callback_set(self, func):
 		'''Call event_listen() to start receiving these,
 				and be sure to raise PulseLoopStop in a callback to stop the loop.
+			Callback should accept single argument - PulseEventInfo instance.
 			Passing None will disable the thing.'''
 		self.event_callback = func
 
