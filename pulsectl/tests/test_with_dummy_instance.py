@@ -9,7 +9,8 @@ if sys.version_info.major > 2: unicode = str
 
 try: import pulsectl
 except ImportError:
-	sys.path.insert(1, os.path.join(__file__, *['..']*2))
+	sys.path.insert( 1,
+		os.path.abspath(os.path.join(__file__, *['..']*3)) )
 	import pulsectl
 
 
