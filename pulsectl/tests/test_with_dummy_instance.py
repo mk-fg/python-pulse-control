@@ -119,7 +119,10 @@ def _dummy_pulse_init(info):
 				continue
 			addr, p, af = spec
 			with contextlib.closing(socket.socket(af, socket.SOCK_STREAM)) as s:
-				s.bind((addr, p))
+				try: s.bind((addr, p))
+				except socket.error:
+					if af == socket.AF_INET: raise
+					continue # leaves port=0 if IPv6 is disabled
 				s.listen(1)
 				spec[1] = s.getsockname()[1]
 		info.update(
@@ -171,7 +174,7 @@ def _dummy_pulse_init(info):
 				'module-native-protocol-tcp auth-anonymous=true'
 					' listen={} port={}'.format(*bind4),
 				'module-native-protocol-tcp auth-anonymous=true'
-					' listen={} port={}'.format(*bind6),
+					' listen={} port={}'.format(*bind6) if int(bind6[1]) else '',
 				'module-native-protocol-unix',
 
 				'module-null-sink',
@@ -262,8 +265,9 @@ class DummyTests(unittest.TestCase):
 		with pulsectl.Pulse('t', server=self.sock_unix) as pulse: si = pulse.server_info()
 		with pulsectl.Pulse('t', server=self.sock_tcp4) as pulse: si4 = pulse.server_info()
 		self.assertEqual(vars(si), vars(si4))
-		with pulsectl.Pulse('t', server=self.sock_tcp6) as pulse: si6 = pulse.server_info()
-		self.assertEqual(vars(si), vars(si6))
+		if int(self.sock_tcp6.rsplit(':', 1)[-1]):
+			with pulsectl.Pulse('t', server=self.sock_tcp6) as pulse: si6 = pulse.server_info()
+			self.assertEqual(vars(si), vars(si6))
 
 	def test_connect_timeout(self):
 		self.sock_delay_thread_ready.wait(timeout=2)
