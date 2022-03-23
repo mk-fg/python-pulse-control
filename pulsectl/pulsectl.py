@@ -908,6 +908,7 @@ class Pulse(object):
 			try: c.pa.stream_disconnect(s)
 			except c.pa.CallError: pass # stream was removed
 
+		c.pa.stream_unref(s)
 		return min(1.0, samples[0])
 
 	def play_sample(self, name, sink=None, volume=1.0, proplist_str=None):
