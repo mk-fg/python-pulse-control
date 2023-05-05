@@ -21,6 +21,12 @@ Originally forked from pulsemixer_ project, which had this code bundled.
 .. contents::
   :backlinks: none
 
+Repository URLs:
+
+- https://github.com/mk-fg/python-pulse-control
+- https://codeberg.org/mk-fg/python-pulse-control
+- https://fraggod.net/code/git/python-pulse-control
+
 
 
 Usage
