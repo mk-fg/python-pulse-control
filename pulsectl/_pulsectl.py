@@ -152,7 +152,7 @@ class PA_SAMPLE_SPEC(Structure):
 	_fields_ = [
 		('format', c_int),
 		('rate', c_uint32),
-		('channels', c_uint32)
+		('channels', c_uint8)
 	]
 
 class PA_CHANNEL_MAP(Structure):
