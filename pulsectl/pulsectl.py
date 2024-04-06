@@ -752,6 +752,13 @@ class Pulse(object):
 		if not method: raise NotImplementedError(type(obj))
 		method(obj)
 
+	def sink_default_get(self):
+		'Wrapper around server_info() to return sink for default_sink_name there.'
+		return self.get_sink_by_name(self.server_info().default_sink_name)
+	def source_default_get(self):
+		'Wrapper around server_info() to return source for default_source_name there.'
+		return self.get_source_by_name(self.server_info().default_source_name)
+
 	def mute(self, obj, mute=True):
 		assert_pulse_object(obj)
 		method = {

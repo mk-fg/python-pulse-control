@@ -1,6 +1,3 @@
-#!/usr/bin/env python2
-#-*- coding: utf-8 -*-
-
 from setuptools import setup, find_packages
 import os, sys
 
@@ -13,13 +10,12 @@ except IOError: readme = ''
 setup(
 
 	name = 'pulsectl',
-	version = '23.5.2',
+	version = '24.4.0',
 	author = 'George Filipkin, Mike Kazantsev',
 	author_email = 'mk.fraggod@gmail.com',
 	license = 'MIT',
 	keywords = [
-		'pulseaudio', 'libpulse', 'pulse', 'pa', 'bindings',
-		'sound', 'audio',
+		'pulseaudio', 'libpulse', 'pulse', 'pa', 'bindings', 'sound', 'audio',
 		'ctypes', 'control', 'mixer', 'volume', 'mute', 'source', 'sink' ],
 
 	url = 'http://github.com/mk-fg/python-pulse-control',
