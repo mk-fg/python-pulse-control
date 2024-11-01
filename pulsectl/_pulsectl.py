@@ -502,7 +502,7 @@ class LibPulse(object):
 		pa_signal_done=None,
 
 		pa_context_errno=([POINTER(PA_CONTEXT)], c_int),
-		pa_context_new=([POINTER(PA_MAINLOOP_API), c_str_p], POINTER(PA_CONTEXT)),
+		pa_context_new=([POINTER(PA_MAINLOOP_API), c_str_p], (POINTER(PA_CONTEXT), 'not_null')),
 		pa_context_set_state_callback=([POINTER(PA_CONTEXT), PA_STATE_CB_T, c_void_p]),
 		pa_context_connect=([POINTER(PA_CONTEXT), c_str_p, c_int, POINTER(c_int)], 'int_check_ge0'),
 		pa_context_get_state=([POINTER(PA_CONTEXT)], c_int),
