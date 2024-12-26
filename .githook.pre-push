@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+# Push tags on any pushes to "master" branch, with stdout logging
+# Re-assigns tags, but does not delete them, use "git push --delete remote tag" for that
+
+push_remote=$1 push_url=$2 push_refs=
+
+master_push= master_oid=$(git rev-parse master)
+while read local_ref local_oid remote_ref remote_oid; do
+	push_refs="$push_refs $local_ref"
+	[ "$local_oid" != "$master_oid" ] || master_push=t; done
+
+prefix=$(printf 'git-pre-push [ %s %s ] ::' "$push_remote" "$push_url")
+[ -z "$master_push" ] \
+	&& printf '\n%s tags-push skipped for refs [%s ]\n' "$prefix" "$push_refs" \
+	|| { printf '\n%s --- tags-push alongside [%s ] ---\n' "$prefix" "$push_refs"
+		git push --no-verify --tags -f "$push_url" # using URL in case remote has multiple
+		printf '%s --- tags-push success ---\n\n' "$prefix"; }

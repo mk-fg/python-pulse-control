@@ -1,0 +1,30 @@
+#!/bin/bash
+set -eo pipefail
+
+# (Re-)Assigns git tags based on version in setup.py file, logs action to stdout
+# Current git doesn't have option to auto-push tags, so there's pre-push hook for that too
+# (--follow-tags seem to only extend to annotated tags, which these aren't)
+
+die() {
+	echo >&2 $'\ngit-post-commit :: ----------------------------------------'
+	echo >&2 "git-post-commit :: ERROR: $@"
+	echo >&2 $'git-post-commit :: ----------------------------------------\n'; exit 1; }
+
+ver=$( git show --no-color --diff-filter=M -aU0 setup.py |
+		gawk '/^\+\s*version\s*=/ {
+			split(substr($NF,2,length($NF)-3),v,".")
+			print v[1]+0 "." v[2]+0 "." v[3]+0}' )
+
+[[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+	ver=$( gawk '/^\s*version\s*=/ {
+		split(substr($NF,2,length($NF)-3),v,".")
+		print v[1]+0 "." v[2]+0 "." v[3]+0}' setup.py )
+	[[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || \
+		die 'Failed to get version from git-show and setup.py file'
+	ver_tag=$(git tag --sort=v:refname | tail -1)
+	[[ -n "$ver" && "$ver" = "$ver_tag" ]] || die 'No new release to tag,'`
+		`" and last git-tag [ $ver_tag ] does not match setup.py version [ $ver ]"
+	echo $'\ngit-post-commit :: no new tag, last one matches setup.py\n'; exit 0; }
+
+git tag -f "$ver" HEAD # can be reassigning tag after --amend
+echo -e "\ngit-post-commit :: tagged new release [ $ver ]\n"
