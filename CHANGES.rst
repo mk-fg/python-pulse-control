@@ -8,9 +8,11 @@ functionality is listed here, no bugfixes or commit messages.
 Each entry is a package version which change first appears in,
 followed by description of the change itself.
 
-Last synced/updated: 23.5.2
+Last synced/updated: 24.12.0
 
 ---------------------------------------------------------------------------
+
+- 24.12.0: Add profile_list to PulseCardPortInfo, same as there's one for PulseCardInfo [#84].
 
 - 21.10.4: Add channel_list_enum to compare channel_list values with something
   in a typo-free way, expose channel_list_raw with C enum values [#66].
